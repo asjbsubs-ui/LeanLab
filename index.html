@@ -1956,7 +1956,7 @@ const MODAL_FORMS = {
       <div class="field"><label>Date *</label><input class="input" id="m-mtg-date" type="date"></div>
       <div class="field"><label>Time</label><input class="input" id="m-mtg-time" type="time"></div>
     </div>
-    <div class="field"><label>Attendees</label><input class="input" id="m-mtg-attendees" placeholder="Names or emails…"></div>
+    <div class="field"><label>Attendee Emails <span style="font-weight:400;color:var(--text-muted);font-size:10px">(Google invite will be sent)</span></label><input class="input" id="m-mtg-attendees" type="email" placeholder="email@example.com, another@example.com…"></div>
     <div class="field"><label>Notes</label><textarea class="textarea" id="m-mtg-notes" placeholder="Agenda or prep notes…"></textarea></div>`,
     save:()=>{
       const title=$('m-mtg-title').value.trim();if(!title)return alert('Title required');
@@ -2380,14 +2380,16 @@ async function _pushGcalEvent(m,token){
   const pad=n=>String(n).padStart(2,'0');
   const endStr=`${endDt.getFullYear()}-${pad(endDt.getMonth()+1)}-${pad(endDt.getDate())}T${pad(endDt.getHours())}:${pad(endDt.getMinutes())}:00`;
   try{
-    const r=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
+    const attendees=(m.attendees||'').split(',').map(e=>e.trim()).filter(e=>e.includes('@')).map(email=>({email}));
+    const r=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all',{
       method:'POST',
       headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({
         summary:m.title,
-        description:[m.attendees,m.notes].filter(Boolean).join('\n'),
+        description:m.notes||'',
         start:{dateTime:startStr,timeZone:tz},
-        end:  {dateTime:endStr,  timeZone:tz}
+        end:  {dateTime:endStr,  timeZone:tz},
+        attendees
       })
     });
     if(r.ok){
@@ -2414,14 +2416,16 @@ async function updateGcalEvent(m){
   const pad=n=>String(n).padStart(2,'0');
   const endStr=`${endDt.getFullYear()}-${pad(endDt.getMonth()+1)}-${pad(endDt.getDate())}T${pad(endDt.getHours())}:${pad(endDt.getMinutes())}:00`;
   try{
-    const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${m.gcalEventId}`,{
+    const attendees=(m.attendees||'').split(',').map(e=>e.trim()).filter(e=>e.includes('@')).map(email=>({email}));
+    const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${m.gcalEventId}?sendUpdates=all`,{
       method:'PATCH',
       headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({
         summary:m.title,
-        description:[m.attendees,m.notes].filter(Boolean).join('\n'),
+        description:m.notes||'',
         start:{dateTime:startStr,timeZone:tz},
-        end:  {dateTime:endStr,  timeZone:tz}
+        end:  {dateTime:endStr,  timeZone:tz},
+        attendees
       })
     });
     if(r.ok) await _fetchGcalEvents();
