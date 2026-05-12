@@ -2381,13 +2381,14 @@ const MODAL_FORMS = {
   metric:{title:'Log Body Metrics',html:`
     <div class="field-row">
       <div class="field"><label>Date</label><input class="input" id="m-met-date" type="date"></div>
-      <div class="field"><label>Weight (kg)</label><input class="input" id="m-met-weight" type="number" step="0.1" placeholder="80.5"></div>
+      <div class="field"><label>Weight (lbs)</label><input class="input" id="m-met-weight" type="number" step="0.1" placeholder="195.0"></div>
     </div>
     <div class="field"><label>Notes</label><input class="input" id="m-met-notes" placeholder="How you feeling? Any context…"></div>`,
     save:()=>{
       const w=$('m-met-weight').value;if(!w)return alert('Enter weight');
+      const kgVal=Math.round(parseFloat(w)/2.20462*10)/10; // store as kg internally
       const metrics=load(K.metrics);
-      metrics.push({id:uid(),date:$('m-met-date').value||today(),weight:parseFloat(w),notes:$('m-met-notes').value.trim()});
+      metrics.push({id:uid(),date:$('m-met-date').value||today(),weight:kgVal,notes:$('m-met-notes').value.trim()});
       save(K.metrics,metrics);closeModal();renderFitness();
     }},
 };
