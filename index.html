@@ -1458,7 +1458,7 @@ function renderGoals(){
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
         ${g.deadline?`<div class="goal-deadline">📅 ${fmtDateShort(g.deadline)}</div>`:'<div></div>'}
         <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="editGoalProgress('${g.id}')">Update %</button>
+          <button class="btn btn-ghost btn-sm" onclick="editGoal('${g.id}')" style="gap:5px">✏️ Edit</button>
           <button class="delete-btn" onclick="deleteGoal('${g.id}')">✕</button>
         </div>
       </div>
@@ -1470,15 +1470,21 @@ function toggleMilestone(gid,mi){
   if(g&&g.milestones[mi]){g.milestones[mi].done=!g.milestones[mi].done;}
   save(K.goals,goals);renderGoals();
 }
-function editGoalProgress(id){
-  const goals=load(K.goals);
-  const g=goals.find(x=>x.id===id);
-  if(!g)return;
-  const n=prompt('Update progress (0-100):',g.progress);
-  if(n===null)return;
-  const v=Math.max(0,Math.min(100,parseInt(n)||0));
-  g.progress=v;save(K.goals,goals);renderGoals();
-  if(activeTab==='home')renderHomeGoals();
+let _editingGoalId=null;
+
+function editGoal(id){
+  const g=load(K.goals).find(x=>x.id===id);if(!g)return;
+  _editingGoalId=id;
+  openModal('goal');
+  setTimeout(()=>{
+    if($('m-goal-title'))    $('m-goal-title').value=g.title||'';
+    if($('m-goal-cat'))      $('m-goal-cat').value=g.cat||'';
+    if($('m-goal-deadline')) $('m-goal-deadline').value=g.deadline||'';
+    if($('m-goal-color'))    $('m-goal-color').value=g.color||'#c084fc';
+    if($('m-goal-progress')) $('m-goal-progress').value=g.progress||0;
+    if($('m-goal-ms'))       $('m-goal-ms').value=(g.milestones||[]).map(m=>m.text).join('\n');
+    if($('modalTitle'))      $('modalTitle').textContent='Edit Goal';
+  },60);
 }
 function deleteGoal(id){save(K.goals,load(K.goals).filter(g=>g.id!==id));renderGoals();if(_logsTab==='goals')renderCurrentLogs('');}
 
@@ -2277,12 +2283,31 @@ const MODAL_FORMS = {
       <div class="field"><label>Deadline</label><input class="input" id="m-goal-deadline" type="date"></div>
     </div>
     <div class="field"><label>Accent Colour</label><select class="select" id="m-goal-color"><option value="#c084fc">Purple</option><option value="#f472b6">Pink</option><option value="#60a5fa">Blue</option><option value="#34d399">Green</option><option value="#f59e0b">Amber</option><option value="#22d3ee">Cyan</option><option value="#4ade80">Lime</option><option value="#fb923c">Orange</option></select></div>
+    <div class="field-row">
+      <div class="field"><label>Progress (%)</label><input class="input" id="m-goal-progress" type="number" min="0" max="100" placeholder="0"></div>
+    </div>
     <div class="field"><label>Milestones (one per line)</label><textarea class="textarea" id="m-goal-ms" placeholder="First milestone&#10;Second milestone&#10;Final milestone"></textarea></div>`,
     save:()=>{
       const title=$('m-goal-title').value.trim();if(!title)return alert('Title required');
-      const ms=$('m-goal-ms').value.split('\n').map(s=>s.trim()).filter(Boolean).map(text=>({text,done:false}));
       const goals=load(K.goals);
-      goals.push({id:uid(),title,cat:$('m-goal-cat').value.trim(),deadline:$('m-goal-deadline').value,color:$('m-goal-color').value,progress:0,milestones:ms});
+      const newProgress=Math.max(0,Math.min(100,parseInt($('m-goal-progress').value)||0));
+      if(_editingGoalId){
+        const i=goals.findIndex(g=>g.id===_editingGoalId);
+        if(i>=0){
+          const existing=goals[i];
+          // Merge milestones: keep done state for existing ones, add new ones
+          const newMsTexts=$('m-goal-ms').value.split('\n').map(s=>s.trim()).filter(Boolean);
+          const mergedMs=newMsTexts.map(text=>{
+            const old=(existing.milestones||[]).find(m=>m.text===text);
+            return old?old:{text,done:false};
+          });
+          goals[i]={...existing,title,cat:$('m-goal-cat').value.trim(),deadline:$('m-goal-deadline').value,color:$('m-goal-color').value,progress:newProgress,milestones:mergedMs};
+        }
+        _editingGoalId=null;
+      } else {
+        const ms=$('m-goal-ms').value.split('\n').map(s=>s.trim()).filter(Boolean).map(text=>({text,done:false}));
+        goals.push({id:uid(),title,cat:$('m-goal-cat').value.trim(),deadline:$('m-goal-deadline').value,color:$('m-goal-color').value,progress:newProgress,milestones:ms});
+      }
       save(K.goals,goals);closeModal();renderGoals();if(activeTab==='home')renderHome();
     }},
   knowledge:{title:'Add Knowledge',html:`
@@ -2379,7 +2404,7 @@ function openModal(type,defaultTaskType){
   $('modalOverlay').classList.add('open');
   setTimeout(()=>{const first=$('modalBody').querySelector('input:not([type=date]),textarea');if(first)first.focus();},120);
 }
-function closeModal(){$('modalOverlay').classList.remove('open');currentSaveFn=null;_editingTaskId=null;_editingMeetingId=null;resetEim();}
+function closeModal(){$('modalOverlay').classList.remove('open');currentSaveFn=null;_editingTaskId=null;_editingMeetingId=null;_editingGoalId=null;resetEim();}
 function closeModalOutside(e){if(e.target===$('modalOverlay'))closeModal();}
 
 // ── ICS EXPORT (kept for Meetings tab) ───────────────
