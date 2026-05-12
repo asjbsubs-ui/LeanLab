@@ -1598,6 +1598,7 @@ function editMeeting(id){
     if($('m-mtg-title'))  $('m-mtg-title').value=m.title||'';
     if($('m-mtg-date'))   $('m-mtg-date').value=m.date||'';
     if($('m-mtg-time'))   $('m-mtg-time').value=m.time||'';
+    if($('m-mtg-end'))    $('m-mtg-end').value=m.endTime||'';
     if($('m-mtg-attendees')) $('m-mtg-attendees').value=m.attendees||'';
     if($('m-mtg-notes'))  $('m-mtg-notes').value=m.notes||'';
     if(m.business){
@@ -2002,6 +2003,15 @@ function selectTaskChip(dim, btn, label){
   }
 }
 
+function autoSetEndTime(){
+  const start=$('m-mtg-time');
+  const end=$('m-mtg-end');
+  if(!start||!end||end.value) return;
+  const [h,m]=start.value.split(':').map(Number);
+  const endH=h+1;
+  if(endH<24) end.value=`${String(endH).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
 function selectMtgBiz(btn, label){
   document.querySelectorAll('#m-mtg-biz-chips button').forEach(c=>{
     c.classList.remove('mtg-biz-on');
@@ -2103,7 +2113,8 @@ const MODAL_FORMS = {
     <div class="field"><label>Meeting Title *</label><input class="input" id="m-mtg-title" placeholder="Call with…"></div>
     <div class="field-row">
       <div class="field"><label>Date *</label><input class="input" id="m-mtg-date" type="date"></div>
-      <div class="field"><label>Time</label><input class="input" id="m-mtg-time" type="time"></div>
+      <div class="field"><label>Start Time</label><input class="input" id="m-mtg-time" type="time" onchange="autoSetEndTime()"></div>
+      <div class="field"><label>End Time</label><input class="input" id="m-mtg-end" type="time"></div>
     </div>
     <div class="field">
       <label>Attendee Emails <span style="font-weight:400;color:var(--text-muted);font-size:10px">(Google Calendar invite sent automatically)</span></label>
@@ -2114,7 +2125,7 @@ const MODAL_FORMS = {
     save:()=>{
       const title=$('m-mtg-title').value.trim();if(!title)return alert('Title required');
       const meetings=load(K.meetings);
-      const fields={title,date:$('m-mtg-date').value,time:$('m-mtg-time').value,attendees:$('m-mtg-attendees').value.trim(),notes:$('m-mtg-notes').value.trim(),business:$('m-mtg-biz').value||'StreamLean'};
+      const fields={title,date:$('m-mtg-date').value,time:$('m-mtg-time').value,endTime:$('m-mtg-end').value,attendees:$('m-mtg-attendees').value.trim(),notes:$('m-mtg-notes').value.trim(),business:$('m-mtg-biz').value||'StreamLean'};
       if(_editingMeetingId){
         const i=meetings.findIndex(m=>m.id===_editingMeetingId);
         if(i>=0){ meetings[i]={...meetings[i],...fields}; updateGcalEvent(meetings[i]); }
@@ -2304,7 +2315,7 @@ function renderMeetings(){
   const meetings=load(K.meetings).sort((a,b)=>a.date>b.date?1:a.date<b.date?-1:a.time>b.time?1:-1);
   const el=$('meetingList');
   if(!meetings.length){el.innerHTML='<div class="empty"><span class="empty-icon">📅</span><span class="empty-text">No meetings yet.</span></div>';return;}
-  el.innerHTML=meetings.map(m=>`<div class="meeting-row"><div class="meeting-time-block"><div class="meeting-time">${m.time||'—'}</div><div class="meeting-date-sm">${fmtDateShort(m.date)}</div></div><div class="meeting-info"><div class="meeting-title">${esc(m.title)}</div>${m.business?`<div style="margin-top:2px"><span style="font-size:10px;padding:1px 8px;border-radius:99px;background:rgba(74,222,128,.1);color:var(--green);font-weight:600">🏢 ${esc(m.business)}</span></div>`:''} ${m.attendees?`<div class="meeting-attendees">${esc(m.attendees)}</div>`:''} ${m.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.notes)}</div>`:''}</div><div style="display:flex;gap:4px;flex-shrink:0"><button class="delete-btn" title="Edit" onclick="editMeeting('${m.id}')" style="font-size:13px">✏️</button><button class="delete-btn" onclick="deleteMeeting('${m.id}')">✕</button></div></div>`).join('');
+  el.innerHTML=meetings.map(m=>`<div class="meeting-row"><div class="meeting-time-block"><div class="meeting-time">${m.time||'—'}${m.endTime?'–'+m.endTime:''}</div><div class="meeting-date-sm">${fmtDateShort(m.date)}</div></div><div class="meeting-info"><div class="meeting-title">${esc(m.title)}</div>${m.business?`<div style="margin-top:2px"><span style="font-size:10px;padding:1px 8px;border-radius:99px;background:rgba(74,222,128,.1);color:var(--green);font-weight:600">🏢 ${esc(m.business)}</span></div>`:''} ${m.attendees?`<div class="meeting-attendees">${esc(m.attendees)}</div>`:''} ${m.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.notes)}</div>`:''}</div><div style="display:flex;gap:4px;flex-shrink:0"><button class="delete-btn" title="Edit" onclick="editMeeting('${m.id}')" style="font-size:13px">✏️</button><button class="delete-btn" onclick="deleteMeeting('${m.id}')">✕</button></div></div>`).join('');
   if(_meetView==='cal') renderMeetCal();
 }
 
@@ -2526,12 +2537,17 @@ async function createGcalEvent(m){
 
 let _pendingGcalEvent=null;
 
+function _gcalEndStr(m){
+  const pad=n=>String(n).padStart(2,'0');
+  if(m.endTime) return `${m.date}T${m.endTime}:00`;
+  const endDt=new Date(`${m.date}T${m.time||'09:00'}:00`);endDt.setHours(endDt.getHours()+1);
+  return `${endDt.getFullYear()}-${pad(endDt.getMonth()+1)}-${pad(endDt.getDate())}T${pad(endDt.getHours())}:${pad(endDt.getMinutes())}:00`;
+}
 async function _pushGcalEvent(m,token){
   const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const startStr=`${m.date}T${m.time||'09:00'}:00`;
-  const endDt=new Date(startStr);endDt.setHours(endDt.getHours()+1);
   const pad=n=>String(n).padStart(2,'0');
-  const endStr=`${endDt.getFullYear()}-${pad(endDt.getMonth()+1)}-${pad(endDt.getDate())}T${pad(endDt.getHours())}:${pad(endDt.getMinutes())}:00`;
+  const startStr=`${m.date}T${m.time||'09:00'}:00`;
+  const endStr=_gcalEndStr(m);
   // Parse attendee emails — strips names, spaces, anything that's not a valid email
   const attendees=(m.attendees||'').split(/[,;]+/).map(e=>e.trim()).filter(e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)).map(email=>({email}));
   const body={
@@ -2572,10 +2588,9 @@ async function updateGcalEvent(m){
   const exp=parseInt(localStorage.getItem('ahq_gcal_token_exp')||'0');
   if(!token||Date.now()>exp) return;
   const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const startStr=`${m.date}T${m.time||'09:00'}:00`;
-  const endDt=new Date(startStr);endDt.setHours(endDt.getHours()+1);
   const pad=n=>String(n).padStart(2,'0');
-  const endStr=`${endDt.getFullYear()}-${pad(endDt.getMonth()+1)}-${pad(endDt.getDate())}T${pad(endDt.getHours())}:${pad(endDt.getMinutes())}:00`;
+  const startStr=`${m.date}T${m.time||'09:00'}:00`;
+  const endStr=_gcalEndStr(m);
   try{
     const attendees=(m.attendees||'').split(',').map(e=>e.trim()).filter(e=>e.includes('@')).map(email=>({email}));
     const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${m.gcalEventId}?sendUpdates=all`,{
