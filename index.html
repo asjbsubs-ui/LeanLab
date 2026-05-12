@@ -2133,8 +2133,8 @@ function showMeetDay(ds){
   }).join('');
 }
 
-// ── Google Calendar Sync ──────────────────────────────
-let _gapiReady=false, _gcalTokenClient=null;
+// ── Google Calendar Sync (token-based, no GAPI client) ──
+let _gcalTokenClient=null;
 
 function toggleMeetSync(){
   const p=$('meetSyncPanel');
@@ -2185,26 +2185,35 @@ async function connectGcal(){
   if(!clientId){alert('Enter your Google OAuth Client ID first.');return;}
   localStorage.setItem('ahq_gcal_client_id',clientId);
   try{
-    await _loadScript('https://apis.google.com/js/api.js');
-    await new Promise(res=>gapi.load('client',res));
-    await gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']});
-    _gapiReady=true;
     await _loadScript('https://accounts.google.com/gsi/client');
     _gcalTokenClient=google.accounts.oauth2.initTokenClient({
       client_id:clientId,
       scope:'https://www.googleapis.com/auth/calendar',
-      callback:async resp=>{if(resp.error){alert('Auth error: '+resp.error);return;}await _fetchGcalEvents();}
+      callback:async resp=>{
+        if(resp.error){alert('Auth error: '+resp.error);return;}
+        // Store token + expiry so we can use it without re-prompting
+        localStorage.setItem('ahq_gcal_token',resp.access_token);
+        localStorage.setItem('ahq_gcal_token_exp',String(Date.now()+(resp.expires_in||3600)*1000));
+        if(_pendingGcalEvent){const ev=_pendingGcalEvent;_pendingGcalEvent=null;await _pushGcalEvent(ev,resp.access_token);}
+        await _fetchGcalEvents();
+      }
     });
     _gcalTokenClient.requestAccessToken({prompt:'consent'});
-  }catch(e){alert('Could not load Google API.\n\n'+e);}
+  }catch(e){alert('Could not load Google sign-in.\n\n'+e);}
 }
+
 async function _fetchGcalEvents(){
+  const token=localStorage.getItem('ahq_gcal_token');
+  if(!token) return;
   const now=new Date();
   const timeMin=new Date(now.getFullYear(),now.getMonth()-1,1).toISOString();
   const timeMax=new Date(now.getFullYear(),now.getMonth()+3,1).toISOString();
   try{
-    const resp=await gapi.client.calendar.events.list({calendarId:'primary',timeMin,timeMax,singleEvents:true,orderBy:'startTime',maxResults:500});
-    const events=(resp.result.items||[]).map(e=>({
+    const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=500`,
+      {headers:{Authorization:`Bearer ${token}`}});
+    if(r.status===401){localStorage.removeItem('ahq_gcal_token');return;}
+    const data=await r.json();
+    const events=(data.items||[]).map(e=>({
       id:e.id,title:e.summary||'(no title)',
       date:(e.start.dateTime||e.start.date||'').slice(0,10),
       time:e.start.dateTime?e.start.dateTime.slice(11,16):'',
@@ -2214,71 +2223,54 @@ async function _fetchGcalEvents(){
     localStorage.setItem('ahq_gcal_connected','true');
     renderMeetSyncPanel();
     if(_meetView==='cal') renderMeetCal();
-    alert(`✅ ${events.length} Google Calendar events synced!`);
-  }catch(e){alert('Sync failed: '+e.message);}
+  }catch(e){console.warn('GCal fetch error',e);}
 }
+
 function disconnectGcal(){
-  localStorage.removeItem('ahq_gcal_connected');
-  localStorage.removeItem('ahq_gcal_events');
-  localStorage.removeItem('ahq_gcal_client_id');
+  ['ahq_gcal_connected','ahq_gcal_events','ahq_gcal_client_id','ahq_gcal_token','ahq_gcal_token_exp'].forEach(k=>localStorage.removeItem(k));
   renderMeetSyncPanel();
   if(_meetView==='cal') renderMeetCal();
 }
 
-async function ensureGcalReady(){
-  const clientId=localStorage.getItem('ahq_gcal_client_id');
-  if(!clientId) return false;
-  try{
-    if(!_gapiReady){
-      await _loadScript('https://apis.google.com/js/api.js');
-      await new Promise(res=>gapi.load('client',res));
-      await gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest']});
-      _gapiReady=true;
-    }
-    if(!_gcalTokenClient){
-      await _loadScript('https://accounts.google.com/gsi/client');
-      _gcalTokenClient=google.accounts.oauth2.initTokenClient({
-        client_id:clientId,
-        scope:'https://www.googleapis.com/auth/calendar',
-        callback:()=>{}
-      });
-    }
-    // Request a fresh token silently (no prompt if already authorised)
-    await new Promise((resolve,reject)=>{
-      _gcalTokenClient.callback=resp=>resp.error?reject(resp):resolve(resp);
-      _gcalTokenClient.requestAccessToken({prompt:''});
-    });
-    return true;
-  }catch(e){
-    // Silent token failed — needs user interaction; fall back to URL approach
-    return false;
-  }
-}
-
 async function createGcalEvent(m){
   if(localStorage.getItem('ahq_gcal_connected')!=='true') return;
+  const token=localStorage.getItem('ahq_gcal_token');
+  const exp=parseInt(localStorage.getItem('ahq_gcal_token_exp')||'0');
+  if(!token||Date.now()>exp){
+    // Token expired — silently re-request using stored client ID
+    const clientId=localStorage.getItem('ahq_gcal_client_id');
+    if(clientId&&_gcalTokenClient){
+      // Queue the event creation after new token arrives
+      _pendingGcalEvent=m;
+      _gcalTokenClient.requestAccessToken({prompt:''});
+    }
+    return;
+  }
+  await _pushGcalEvent(m,token);
+}
+
+let _pendingGcalEvent=null;
+
+async function _pushGcalEvent(m,token){
+  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const startStr=`${m.date}T${m.time||'09:00'}:00`;
+  const endDt=new Date(startStr);endDt.setHours(endDt.getHours()+1);
+  const pad=n=>String(n).padStart(2,'0');
+  const endStr=`${endDt.getFullYear()}-${pad(endDt.getMonth()+1)}-${pad(endDt.getDate())}T${pad(endDt.getHours())}:${pad(endDt.getMinutes())}:00`;
   try{
-    const ready = await ensureGcalReady();
-    if(!ready){ addMeetingToGcal(m.id); return; } // fallback: open GCal in browser
-    const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const startStr=`${m.date}T${m.time||'09:00'}:00`;
-    const endDt=new Date(startStr); endDt.setHours(endDt.getHours()+1);
-    const pad=n=>String(n).padStart(2,'0');
-    const endStr=`${endDt.getFullYear()}-${pad(endDt.getMonth()+1)}-${pad(endDt.getDate())}T${pad(endDt.getHours())}:${pad(endDt.getMinutes())}:00`;
-    await gapi.client.calendar.events.insert({
-      calendarId:'primary',
-      resource:{
+    const r=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
+      method:'POST',
+      headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+      body:JSON.stringify({
         summary:m.title,
         description:[m.attendees,m.notes].filter(Boolean).join('\n'),
         start:{dateTime:startStr,timeZone:tz},
         end:  {dateTime:endStr,  timeZone:tz}
-      }
+      })
     });
-    await _fetchGcalEvents();
-  }catch(e){
-    console.warn('GCal create error',e);
-    addMeetingToGcal(m.id); // fallback
-  }
+    if(r.ok) await _fetchGcalEvents();
+    else console.warn('GCal event create failed',r.status,await r.text());
+  }catch(e){console.warn('GCal push error',e);}
 }
 function _loadScript(src){
   return new Promise((res,rej)=>{
