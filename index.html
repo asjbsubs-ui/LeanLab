@@ -2892,7 +2892,7 @@ function closeMobSidebar(){
 }
 
 // ── Obsidian Sync ─────────────────────────────────────
-const OBS_PORT = 27123;
+const OBS_PORT = 27124; // HTTPS port (required when LeanHQ is served over HTTPS)
 const OBS_KEY_MAP = {
   [K.tasks]:'Tasks.md', [K.meetings]:'Meetings.md',
   [K.habits]:'Habits.md', [K.habitLog]:'Habits.md',
@@ -2908,7 +2908,7 @@ async function pushToObsidian(file, md){
   const folder=(localStorage.getItem('obs_vault_folder')||'LeanHQ/Data').replace(/\/$/,'');
   if(!key) return;
   try{
-    await fetch(`http://localhost:${OBS_PORT}/vault/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`,{
+    await fetch(`https://localhost:${OBS_PORT}/vault/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`,{
       method:'PUT',
       headers:{'Authorization':`Bearer ${key}`,'Content-Type':'text/markdown'},
       body:md
@@ -3016,10 +3016,10 @@ async function testObsSync(){
   const key=$('obs-key').value.trim();
   if(!key){alert('Enter your API key first.');return;}
   try{
-    const r=await fetch(`http://localhost:${OBS_PORT}/`,{headers:{'Authorization':`Bearer ${key}`}});
+    const r=await fetch(`https://localhost:${OBS_PORT}/`,{headers:{'Authorization':`Bearer ${key}`}});
     if(r.ok||r.status===200) showToast('✅ Obsidian connected successfully','var(--green)');
     else showToast('Connection failed — check the key','var(--red)');
-  }catch(e){ showToast('Obsidian not reachable — is it open?','var(--red)'); }
+  }catch(e){ showToast('Not reachable — visit https://localhost:'+OBS_PORT+' in browser first to accept the certificate','var(--red)'); }
 }
 
 function obsFullSync(){
