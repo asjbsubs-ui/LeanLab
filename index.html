@@ -1278,7 +1278,7 @@ function switchTab(id, btn){
   // Auto-resync GCal when navigating to Meetings
   if(id==='meetings') gcalAutoSync();
   // Auto-focus note input when navigating to Notes
-  if(id==='notes') setTimeout(()=>{ const el=$('note-input'); if(el) el.focus(); },80);
+  if(id==='notes'){ setTimeout(()=>{ const el=$('note-input'); if(el) el.focus(); },80); mediaMemosSync(); }
 }
 
 // ── Discipline score ───────────────────────────────────
@@ -3782,6 +3782,39 @@ async function sbStorageUrl(path){
 async function sbStorageDelete(path){
   if(!_sb||!_sbUser||!path)return;
   await _sb.storage.from('leanhq-media').remove([path]).catch(()=>{});
+}
+
+async function mediaMemosSync(){
+  // 1. Pull latest metadata from Supabase so other devices' recordings appear
+  if(_sb&&_sbUser){
+    try{
+      const {data}=await _sb.from('leanhq_sync')
+        .select('value').eq('user_id',_sbUser.id).eq('key',K.mediaMemos).single();
+      if(data?.value) localStorage.setItem(K.mediaMemos,JSON.stringify(data.value));
+    }catch(e){}
+  }
+  // 2. Upload any IDB memos that are missing a storagePath (recorded before bucket existed)
+  if(_sb&&_sbUser){
+    const idbMemos=await vmGetAll().catch(()=>[]);
+    const pending=idbMemos.filter(m=>!m.storagePath&&m.blob);
+    if(pending.length){
+      let updated=false;
+      for(const m of pending){
+        const path=await sbStorageUpload(m.blob,m.id);
+        if(path){
+          await vmSaveRecord({...m,storagePath:path});
+          const memos=load(K.mediaMemos)||[];
+          const idx=memos.findIndex(x=>x.id===m.id);
+          const meta={id:m.id,title:m.title,date:m.date,ts:m.ts,mimeType:m.mimeType,kind:m.kind,storagePath:path};
+          if(idx>=0) memos[idx]=meta; else memos.push(meta);
+          save(K.mediaMemos,memos);
+          updated=true;
+        }
+      }
+      if(updated) showToast(`${pending.length} memo${pending.length>1?'s':''} uploaded & synced ☁`);
+    }
+  }
+  renderNotes();
 }
 
 // ── VIDEO MEMOS ──────────────────────────────────────
