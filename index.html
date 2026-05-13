@@ -723,7 +723,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
       </div>
       <select class="input" id="taskFilter" style="width:120px" onchange="renderTasks()">
         <option value="all">All tasks</option>
-        <option value="active">Active</option>
+        <option value="active" selected>Active</option>
         <option value="done">Done</option>
         <option value="high">High priority</option>
       </select>
@@ -1481,12 +1481,20 @@ function renderTasks(){
         <button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:10px" onclick="openModal('task','personal')">+ Add</button>
       </div>
       ${personal.length?personal.map(taskCard).join(''):emptyMsg}
-    </div>`;
+    </div>
+    ${(()=>{const doneCount=load(K.tasks).filter(t=>t.done).length;return doneCount?`<div style="text-align:center;padding:14px 0 4px"><button onclick="document.getElementById('taskFilter').value='done';renderTasks()" style="background:transparent;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);font-family:'Outfit',sans-serif" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">✓ ${doneCount} completed — view archived</button></div>`:'';})()}`;
 }
 function toggleTask(id){
   const tasks=load(K.tasks);
   const t=tasks.find(t=>t.id===id);
-  if(t){t.done=!t.done;save(K.tasks,tasks);}
+  if(!t)return;
+  t.done=!t.done;
+  save(K.tasks,tasks);
+  // Archive immediately: switch to active filter when marking done
+  if(t.done){
+    const f=$('taskFilter');
+    if(f&&f.value==='all') f.value='active';
+  }
   renderTasks();if(activeTab==='home')renderHome();
 }
 function editTask(id){
