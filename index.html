@@ -485,6 +485,18 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
 .vm-close-btn{background:rgba(255,255,255,.14);border:none;color:#fff;cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;font-weight:600;padding:8px 14px;border-radius:var(--r-sm);backdrop-filter:blur(6px);-webkit-tap-highlight-color:transparent}
 .vm-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:10px}
 .vm-card video{width:100%;display:block;max-height:300px;background:#000;outline:none}
+.vm-card audio{width:100%;display:block;margin-bottom:0}
+.vm-voice-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}
+.vm-voice-card{background:var(--bg-card);border:1px solid var(--border-md);border-radius:var(--r-xl);padding:32px 24px 24px;width:100%;max-width:340px;text-align:center;position:relative;overflow:hidden}
+.vm-voice-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#a78bfa,transparent)}
+.vm-voice-mic{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px;border:2px solid var(--border-md);transition:all .25s}
+.vm-voice-mic.recording{border-color:#f87171;background:rgba(248,113,113,.1);animation:vmpulse 1.1s ease-in-out infinite}
+.vm-voice-time{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:700;color:var(--text-bright);margin-bottom:6px;letter-spacing:.04em}
+.vm-voice-status{font-size:12px;color:var(--text-muted);margin-bottom:22px;min-height:18px}
+.vm-voice-rec-btn{width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,.3);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.vm-voice-rec-btn .vm-dot{width:24px;height:24px;border-radius:50%;background:#f87171;transition:all .25s}
+.vm-voice-rec-btn.recording{border-color:var(--red)}
+.vm-voice-rec-btn.recording .vm-dot{border-radius:6px}
 .note-source{font-size:11px;color:#60a5fa;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
 .note-source:hover{text-decoration:underline}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg-card);border:1px solid var(--border-md);border-radius:var(--r-lg);padding:11px 20px;font-size:13px;font-weight:500;color:var(--text-primary);z-index:9000;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.5)}
@@ -1001,7 +1013,8 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
       <div class="ph-sub">Capture ideas before they disappear.</div>
     </div>
     <div class="ph-actions">
-      <button class="btn btn-ghost" onclick="openVideoRecorder()">📹 Record</button>
+      <button class="btn btn-ghost" onclick="openVoiceRecorder()">🎙️ Voice</button>
+      <button class="btn btn-ghost" onclick="openVideoRecorder()">📹 Video</button>
       <button class="btn btn-ghost" onclick="openLogs('notes')">📋 Logs</button>
     </div>
   </div>
@@ -1133,6 +1146,32 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
       <div style="display:flex;gap:10px">
         <button class="btn btn-ghost" style="flex:1;border-color:rgba(255,255,255,.18);color:rgba(255,255,255,.7)" onclick="discardRecording()">Re-record</button>
         <button class="btn btn-primary" style="flex:2;background:#a78bfa;color:#000;font-size:13px" onclick="saveVideoMemo()">💾 Save Memo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VOICE RECORDER -->
+<div id="vmVoiceOverlay" class="vm-voice-overlay">
+  <div class="vm-voice-card">
+    <button onclick="closeVoiceRecorder()" style="position:absolute;top:12px;right:14px;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:4px;line-height:1">✕</button>
+    <!-- Record phase -->
+    <div id="vmVoiceRecPhase">
+      <div class="vm-voice-mic" id="vmVoiceMic">🎙️</div>
+      <div class="vm-voice-time" id="vmVoiceTime">0:00</div>
+      <div class="vm-voice-status" id="vmVoiceStatus">Tap to start recording</div>
+      <button class="vm-voice-rec-btn" id="vmVoiceRecBtn" onclick="toggleVoiceRecording()">
+        <div class="vm-dot"></div>
+      </button>
+    </div>
+    <!-- Review phase -->
+    <div id="vmVoiceReview" style="display:none">
+      <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:14px">Review Recording</div>
+      <audio id="vmVoicePlayback" controls style="width:100%;margin-bottom:16px"></audio>
+      <input class="input" id="vmVoiceTitle" placeholder="Voice memo title (optional)…" style="margin-bottom:12px">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" style="flex:1" onclick="discardVoice()">Re-record</button>
+        <button class="btn btn-primary" style="flex:2;background:#a78bfa;color:#000" onclick="saveVoiceMemo()">💾 Save</button>
       </div>
     </div>
   </div>
@@ -2319,22 +2358,31 @@ async function renderNotes(){
   const filterEl=$('notes-filter');
   if(filterEl) filterEl.innerHTML=[{v:'',l:'All'},...cats.map(c=>({v:c,l:c}))].map(({v,l})=>`<button onclick="setNoteCatFilter('${v.replace(/'/g,"\\'")}') " style="padding:4px 12px;border-radius:99px;border:1px solid ${_noteCatFilter===v?'#a78bfa':'var(--border-md)'};background:${_noteCatFilter===v?'rgba(167,139,250,.15)':'transparent'};color:${_noteCatFilter===v?'#a78bfa':'var(--text-muted)'};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;transition:all .15s">${l}</button>`).join('');
   const filteredNotes=(_noteCatFilter?all.filter(n=>n.category===_noteCatFilter):all).map(n=>({...n,_kind:'note'}));
-  const filteredVideos=_noteCatFilter?[]:videos.map(v=>({...v,_kind:'video'}));
+  const filteredVideos=_noteCatFilter?[]:videos.map(v=>({...v,_kind:v.kind||'video'}));
   const merged=[...filteredNotes,...filteredVideos].sort((a,b)=>(b.ts||0)-(a.ts||0));
   const el=$('notesFeed');
   if(!el) return;
   if(!merged.length){
-    el.innerHTML=`<div class="empty"><span class="empty-icon">💡</span><span class="empty-text">${_noteCatFilter?'No notes in this category.':'No captures yet. Write a note or record a video memo above.'}</span></div>`;
+    el.innerHTML=`<div class="empty"><span class="empty-icon">💡</span><span class="empty-text">${_noteCatFilter?'No notes in this category.':'No captures yet. Write a note, record a voice or video memo above.'}</span></div>`;
     return;
   }
   el.innerHTML=merged.map(item=>{
-    if(item._kind==='video'){
+    if(item._kind==='video'||item._kind==='audio'){
+      const isAudio=item._kind==='audio';
       const url=item.blob?URL.createObjectURL(item.blob):'';
+      const ext=(item.mimeType||'').includes('mp4')?'mp4':(item.mimeType||'').includes('ogg')?'ogg':'webm';
+      const filename=`${(item.title||'memo').replace(/[^a-z0-9]/gi,'_')}.${ext}`;
+      const mediaEl=isAudio
+        ?`<div style="padding:14px 16px 0"><audio src="${url}" controls style="width:100%"></audio></div>`
+        :`<video src="${url}" controls playsinline preload="metadata" style="width:100%;display:block;max-height:300px;background:#000"></video>`;
+      const icon=isAudio?'🎙️':'📹';
       return `<div class="vm-card">
-        ${url?`<video src="${url}" controls playsinline preload="metadata" style="width:100%;display:block;max-height:300px;background:#000"></video>`:''}
-        <div style="padding:12px 14px;display:flex;align-items:center;gap:10px">
-          <span style="font-size:13px;font-weight:600;color:var(--text-primary);flex:1">${esc(item.title||'Video Memo')}</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted)">${fmtDateShort(item.date)}</span>
+        ${url?mediaEl:''}
+        <div style="padding:12px 14px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px">${icon}</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.title||'Memo')}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);flex-shrink:0">${fmtDateShort(item.date)}</span>
+          ${url?`<a href="${url}" download="${filename}" title="Download" style="color:var(--text-muted);font-size:14px;text-decoration:none;flex-shrink:0" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">⬇</a>`:''}
           <button class="delete-btn" onclick="deleteVideoMemo('${item.id}')">✕</button>
         </div>
       </div>`;
@@ -3832,13 +3880,103 @@ async function saveVideoMemo(){
   const title=($('vmTitle')||{value:''}).value.trim()||'Video Memo';
   const id=uid();
   try{
-    await vmSaveRecord({id,title,date:today(),ts:Date.now(),mimeType:_vmBlob.type,blob:_vmBlob});
+    await vmSaveRecord({id,title,date:today(),ts:Date.now(),mimeType:_vmBlob.type,blob:_vmBlob,kind:'video'});
     showToast('Video memo saved 🎥');
     closeVideoRecorder();
     if(activeTab==='notes')renderNotes();
   }catch(e){
     showToast('Save failed: '+e.message,'var(--red)');
   }
+}
+
+// ── VOICE MEMOS ───────────────────────────────────────
+let _vaStream=null,_vaRecorder=null,_vaChunks=[],_vaBlob=null;
+let _vaSecs=0,_vaTimerInt=null,_vaRecording=false;
+
+async function openVoiceRecorder(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    showToast('Microphone not supported on this browser','var(--red)');return;
+  }
+  try{
+    _vaStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    $('vmVoiceRecPhase').style.display='block';
+    $('vmVoiceReview').style.display='none';
+    $('vmVoiceTime').textContent='0:00';
+    $('vmVoiceStatus').textContent='Tap to start recording';
+    $('vmVoiceMic').classList.remove('recording');
+    $('vmVoiceRecBtn').classList.remove('recording');
+    $('vmVoiceOverlay').style.display='flex';
+  }catch(e){showToast('Microphone access denied — check browser permissions','var(--red)');}
+}
+
+function closeVoiceRecorder(){
+  _vaStopStream();_vaStopTimer();
+  _vaBlob=null;_vaChunks=[];_vaRecording=false;
+  const ov=$('vmVoiceOverlay');if(ov)ov.style.display='none';
+}
+function _vaStopStream(){if(_vaStream){_vaStream.getTracks().forEach(t=>t.stop());_vaStream=null;}}
+function _vaStopTimer(){clearInterval(_vaTimerInt);_vaTimerInt=null;_vaSecs=0;}
+
+function toggleVoiceRecording(){if(_vaRecording)stopVoiceRecording();else startVoiceRecording();}
+
+function startVoiceRecording(){
+  if(!_vaStream)return;
+  _vaChunks=[];
+  const types=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
+  const mime=types.find(t=>{try{return MediaRecorder.isTypeSupported(t)}catch{return false}})||'';
+  try{_vaRecorder=new MediaRecorder(_vaStream,mime?{mimeType:mime}:{});}
+  catch{_vaRecorder=new MediaRecorder(_vaStream);}
+  _vaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)_vaChunks.push(e.data);};
+  _vaRecorder.onstop=()=>{
+    _vaBlob=new Blob(_vaChunks,{type:_vaRecorder.mimeType||'audio/webm'});
+    _vaShowReview();
+  };
+  _vaRecorder.start(500);
+  _vaRecording=true;
+  $('vmVoiceMic').classList.add('recording');
+  $('vmVoiceRecBtn').classList.add('recording');
+  $('vmVoiceStatus').textContent='Recording…';
+  _vaSecs=0;
+  _vaTimerInt=setInterval(()=>{
+    _vaSecs++;
+    const m=Math.floor(_vaSecs/60),s=_vaSecs%60;
+    $('vmVoiceTime').textContent=`${m}:${String(s).padStart(2,'0')}`;
+  },1000);
+}
+
+function stopVoiceRecording(){
+  if(_vaRecorder&&_vaRecorder.state!=='inactive')_vaRecorder.stop();
+  _vaRecording=false;
+  $('vmVoiceMic').classList.remove('recording');
+  $('vmVoiceRecBtn').classList.remove('recording');
+  $('vmVoiceStatus').textContent='';
+  _vaStopTimer();
+}
+
+function _vaShowReview(){
+  $('vmVoiceRecPhase').style.display='none';
+  $('vmVoiceReview').style.display='block';
+  const pb=$('vmVoicePlayback');
+  if(pb&&_vaBlob){pb.src=URL.createObjectURL(_vaBlob);pb.play().catch(()=>{});}
+  setTimeout(()=>{const ti=$('vmVoiceTitle');if(ti){ti.value='';ti.focus();}},100);
+}
+
+function discardVoice(){
+  const pb=$('vmVoicePlayback');if(pb){pb.pause();pb.src='';}
+  _vaBlob=null;_vaChunks=[];
+  _vaStopStream();
+  openVoiceRecorder();
+}
+
+async function saveVoiceMemo(){
+  if(!_vaBlob){closeVoiceRecorder();return;}
+  const title=($('vmVoiceTitle')||{value:''}).value.trim()||'Voice Memo';
+  try{
+    await vmSaveRecord({id:uid(),title,date:today(),ts:Date.now(),mimeType:_vaBlob.type,blob:_vaBlob,kind:'audio'});
+    showToast('Voice memo saved 🎙️');
+    closeVoiceRecorder();
+    if(activeTab==='notes')renderNotes();
+  }catch(e){showToast('Save failed: '+e.message,'var(--red)');}
 }
 
 async function deleteVideoMemo(id){
