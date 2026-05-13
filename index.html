@@ -22,6 +22,7 @@
   --nav-w:230px;
   --t-home:#4ade80;--t-tasks:#86efac;--t-meetings:#34d399;--t-habits:#a3e635;
   --t-goals:#6ee7b7;--t-journal:#d1fae5;--t-selfdev:#22d3ee;--t-fitness:#4ade80;--t-review:#86efac;--t-calendar:#34d399;
+  --t-directory:#f472b6;
 }
 html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family:'Outfit',sans-serif;font-size:14px;line-height:1.5;overflow:hidden}
 /* ── Scrollbar ── */
@@ -261,6 +262,25 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
 .meeting-info{flex:1;min-width:0}
 .meeting-title{font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:2px}
 .meeting-attendees{font-size:11px;color:var(--text-muted)}
+.meeting-row.done{opacity:.72}
+.meeting-row.done .meeting-title{text-decoration:line-through;color:var(--text-muted)}
+/* ── Directory ── */
+.dir-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);transition:background .1s}
+.dir-row:last-child{border-bottom:none}
+.dir-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Orbitron',monospace;font-size:15px;font-weight:800;flex-shrink:0}
+.dir-name{font-size:13px;font-weight:600;color:var(--text-primary)}
+.dir-meta{font-size:11px;color:var(--text-muted);margin-top:2px}
+.dir-cat{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:99px;display:inline-block;flex-shrink:0}
+.dir-filter-chip{padding:5px 12px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;transition:all .12s;white-space:nowrap}
+.dir-filter-chip.on{border-color:var(--t-directory);background:color-mix(in srgb,var(--t-directory) 12%,transparent);color:var(--t-directory)}
+.dir-import-zone{border:2px dashed var(--border-md);border-radius:var(--r-md);padding:24px;text-align:center;cursor:pointer;transition:all .15s}
+.dir-import-zone:hover{border-color:var(--t-directory);background:color-mix(in srgb,var(--t-directory) 5%,transparent)}
+.mtg-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border-strong);background:transparent;cursor:pointer;flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;padding:0;line-height:1}
+.mtg-check.done{background:var(--t-meetings);border-color:var(--t-meetings);color:#000}
+.mtg-check:hover:not(.done){border-color:var(--t-meetings)}
+.outcome-badge{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px;display:inline-block;margin-top:5px}
+.outcome-chip{padding:6px 14px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;transition:all .15s}
+.outcome-chip.on{border-color:var(--oc,var(--green));background:color-mix(in srgb,var(--oc,var(--green)) 12%,transparent);color:var(--oc,var(--green))}
 
 /* ── Milestones ── */
 .milestone-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -560,6 +580,10 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
     </button>
     <button class="nav-btn" data-tab="notes" style="--tab-color:#a78bfa" onclick="switchTab('notes',this)">
       <span class="nav-emoji">💡</span>Notes
+    </button>
+    <button class="nav-btn" data-tab="directory" style="--tab-color:var(--t-directory)" onclick="switchTab('directory',this)">
+      <span class="nav-emoji">👥</span>Directory
+      <span class="nav-pill" id="pill-directory" style="background:color-mix(in srgb,var(--t-directory) 15%,transparent);color:var(--t-directory)"></span>
     </button>
   </div>
   <div class="sb-score">
@@ -970,6 +994,37 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
   <div id="notesFeed"><div class="empty"><span class="empty-icon">💡</span><span class="empty-text">No notes yet. Start capturing ideas above.</span></div></div>
 </div>
 
+<!-- DIRECTORY -->
+<div id="tab-directory" class="tab-panel">
+  <div class="ph">
+    <div class="ph-left">
+      <div class="ph-eyebrow" style="color:var(--t-directory)">People</div>
+      <div class="ph-title" style="color:var(--t-directory)">Directory</div>
+      <div class="ph-sub">Your contacts, organized and searchable.</div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('dir-import-input').click()" title="Import from Notion CSV or any CSV export">⬆ Import CSV</button>
+      <input type="file" id="dir-import-input" accept=".csv,.CSV" style="display:none" onchange="importContacts(this)">
+      <button class="btn btn-ghost" onclick="exportContacts()">⬇ Export CSV</button>
+      <button class="btn btn-primary" style="background:var(--t-directory);color:#000" onclick="openModal('contact')">+ Add Contact</button>
+    </div>
+  </div>
+  <!-- Search -->
+  <div style="position:relative;margin-bottom:12px">
+    <input class="input" id="dirSearch" placeholder="Search name, company, email, tags, notes…" oninput="renderDirectory()" style="font-size:13px">
+  </div>
+  <!-- Category filter -->
+  <div id="dirCategoryChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+  <!-- Stats -->
+  <div id="dirStats" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
+  <!-- List -->
+  <div class="card">
+    <div class="card-body" id="dirList">
+      <div class="empty"><span class="empty-icon">👥</span><span class="empty-text">No contacts yet. Add one or import from Notion CSV.</span></div>
+    </div>
+  </div>
+</div>
+
 <!-- LOGS PAGE -->
 <div id="logs-page" style="display:none;height:100%;flex-direction:column">
   <div class="logs-bar">
@@ -985,6 +1040,36 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
 </div><!-- /shell -->
 
 <!-- ── Modal ── -->
+<!-- OUTCOME MODAL -->
+<div id="outcomeOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px">
+  <div style="background:var(--bg-card);border:1px solid var(--border-md);border-radius:var(--r-xl);width:100%;max-width:440px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--t-meetings),transparent)"></div>
+    <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--t-meetings);margin-bottom:3px">Meeting Complete</div>
+        <div style="font-family:'Orbitron',monospace;font-size:13px;font-weight:800;color:var(--text-bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px" id="outcomeMtgTitle">Meeting Outcome</div>
+      </div>
+      <button onclick="closeOutcomeModal()" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:0;line-height:1;flex-shrink:0;margin-left:12px">✕</button>
+    </div>
+    <div style="padding:20px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Outcome</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px" id="outcomeChips">
+        <button type="button" class="outcome-chip" style="--oc:#4ade80" data-outcome="Closed" onclick="selectOutcomeChip(this)">✅ Closed</button>
+        <button type="button" class="outcome-chip" style="--oc:#fbbf24" data-outcome="Follow-Up" onclick="selectOutcomeChip(this)">🔄 Follow-Up</button>
+        <button type="button" class="outcome-chip" style="--oc:#f87171" data-outcome="No Show" onclick="selectOutcomeChip(this)">🚫 No Show</button>
+        <button type="button" class="outcome-chip" style="--oc:#fb923c" data-outcome="Cancelled" onclick="selectOutcomeChip(this)">❌ Cancelled</button>
+        <button type="button" class="outcome-chip" style="--oc:#22d3ee" data-outcome="Rescheduled" onclick="selectOutcomeChip(this)">📅 Rescheduled</button>
+      </div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">Post-Meeting Notes</div>
+      <textarea class="textarea" id="outcomeNotes" placeholder="What happened? Next steps, key decisions, action items…" style="min-height:90px"></textarea>
+    </div>
+    <div style="padding:12px 20px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeOutcomeModal()">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--t-meetings);color:#000" onclick="saveOutcome()">Save Outcome</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
   <div class="modal" id="modal">
     <div class="modal-head">
@@ -1012,7 +1097,7 @@ function fmtDate(d){if(!d)return'';const dt=new Date(d+'T12:00:00');return dt.to
 function fmtDateShort(d){if(!d)return'';const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
 
 // ── Keys ──────────────────────────────────────────────
-const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes'};
+const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes',directory:'ahq_directory'};
 
 function migrateKnowledge(){
   if(localStorage.getItem('ahq_km_done')) return;
@@ -1048,7 +1133,7 @@ function seedIfEmpty(){
 
 // ── Tab switching ─────────────────────────────────────
 let activeTab = 'home';
-const TAB_COLORS = {home:'--t-home',tasks:'--t-tasks',meetings:'--t-meetings',habits:'--t-habits',goals:'--t-goals',journal:'--t-journal',selfdev:'--t-selfdev',fitness:'--t-fitness',review:'--t-review'};
+const TAB_COLORS = {home:'--t-home',tasks:'--t-tasks',meetings:'--t-meetings',habits:'--t-habits',goals:'--t-goals',journal:'--t-journal',selfdev:'--t-selfdev',fitness:'--t-fitness',review:'--t-review',directory:'--t-directory'};
 
 function switchTab(id, btn){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
@@ -1058,7 +1143,7 @@ function switchTab(id, btn){
   document.documentElement.style.setProperty('--tab-color',`var(--t-${id})`);
   activeTab = id;
   if(window.innerWidth<=768) closeMobSidebar();
-  const renders = {home:renderHome,tasks:renderTasks,meetings:renderMeetings,habits:renderHabits,goals:renderGoals,journal:renderJournal,selfdev:renderSelfDev,fitness:renderFitness,review:renderReview,notes:renderNotes};
+  const renders = {home:renderHome,tasks:renderTasks,meetings:renderMeetings,habits:renderHabits,goals:renderGoals,journal:renderJournal,selfdev:renderSelfDev,fitness:renderFitness,review:renderReview,notes:renderNotes,directory:renderDirectory};
   if(renders[id]) renders[id]();
   // Auto-resync GCal when navigating to Meetings
   if(id==='meetings') gcalAutoSync();
@@ -1696,6 +1781,46 @@ function deleteMeeting(id){
   save(K.meetings,load(K.meetings).filter(m=>m.id!==id));renderMeetings();if(_logsTab==='meetings')renderCurrentLogs('');
 }
 
+const _OUTCOME_COLORS={'Closed':'#4ade80','Follow-Up':'#fbbf24','No Show':'#f87171','Cancelled':'#fb923c','Rescheduled':'#22d3ee'};
+let _outcomeId=null;
+
+function openOutcomeModal(id){
+  const m=load(K.meetings).find(x=>x.id===id);if(!m)return;
+  _outcomeId=id;
+  $('outcomeMtgTitle').textContent=m.title||'Meeting Outcome';
+  document.querySelectorAll('#outcomeChips .outcome-chip').forEach(c=>{
+    c.classList.toggle('on',!!(m.outcome&&c.dataset.outcome===m.outcome));
+  });
+  $('outcomeNotes').value=m.outcomeNotes||'';
+  const ov=$('outcomeOverlay');
+  ov.style.display='flex';
+  setTimeout(()=>$('outcomeNotes').focus(),80);
+}
+
+function selectOutcomeChip(btn){
+  document.querySelectorAll('#outcomeChips .outcome-chip').forEach(c=>c.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function closeOutcomeModal(){
+  $('outcomeOverlay').style.display='none';
+  _outcomeId=null;
+}
+
+function saveOutcome(){
+  if(!_outcomeId)return;
+  const outcome=(document.querySelector('#outcomeChips .outcome-chip.on')||{}).dataset?.outcome||'';
+  const notes=$('outcomeNotes').value.trim();
+  const meetings=load(K.meetings);
+  const i=meetings.findIndex(m=>m.id===_outcomeId);
+  if(i>=0) meetings[i]={...meetings[i],done:true,outcome,outcomeNotes:notes};
+  save(K.meetings,meetings);
+  closeOutcomeModal();
+  renderMeetings();
+  if(activeTab==='home')renderHome();
+  if(_logsTab==='meetings')renderCurrentLogs('');
+}
+
 // ── SELF-DEV ─────────────────────────────────────────
 const SKILL_ICONS = {'Marketing':'📢','Business':'💼','Sales':'📈','Finance':'💰','Technical':'💻','Personal Development':'🧠','Health & Fitness':'💪','Leadership':'🎯','Mindset':'🧘','Other':'📦'};
 const TYPE_ICONS  = {'Book':'📖','Course':'🎓','Video':'🎥','Podcast':'🎙️','Article':'📝','Other':'📌'};
@@ -2098,6 +2223,7 @@ function renderMatrix(){
         ${t.due?`<div style="font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">📅 ${fmtDateShort(t.due)}</div>`:''}
       </div>
       <button class="delete-btn" onclick="editTask('${t.id}')" style="font-size:11px;padding:2px 4px">✏️</button>
+      <button class="delete-btn" onclick="deleteTask('${t.id}')">✕</button>
     </div>`;
   const quadrant=(q)=>`
     <div class="matrix-q">
@@ -2119,6 +2245,7 @@ function renderMatrix(){
         <div class="check-box" onclick="toggleTask('${t.id}');if(_taskView==='matrix')renderMatrix()" style="cursor:pointer;width:16px;height:16px;border-radius:3px;flex-shrink:0">${t.done?'✓':''}</div>
         <div style="flex:1"><div class="matrix-task-title">${esc(t.title)}</div></div>
         <button class="delete-btn" onclick="editTask('${t.id}')" style="font-size:11px;padding:2px 4px">✏️</button>
+        <button class="delete-btn" onclick="deleteTask('${t.id}')">✕</button>
       </div>`).join('')}
     </div>`:'';
   el.innerHTML=`<div class="matrix-grid">${EIM_Q.map(quadrant).join('')}</div>${unsortedSection}`;
@@ -2391,6 +2518,41 @@ const MODAL_FORMS = {
       metrics.push({id:uid(),date:$('m-met-date').value||today(),weight:kgVal,notes:$('m-met-notes').value.trim()});
       save(K.metrics,metrics);closeModal();renderFitness();
     }},
+  contact:{title:'New Contact',html:`
+    <div class="field"><label>Name *</label><input class="input" id="m-con-name" placeholder="Full name" autocomplete="name"></div>
+    <div class="field">
+      <label>Category</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px" id="m-con-cat-chips">
+        ${['Client','Lead','Partner','Investor','Mentor','Colleague','Friend','Vendor','Referral','Other'].map(cat=>`<button type="button" data-cat="${cat}" onclick="selectDirCatChip(this,'${cat}')" style="padding:4px 12px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;transition:all .15s">${cat}</button>`).join('')}
+      </div>
+      <input type="hidden" id="m-con-cat" value="">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Company / Organization</label><input class="input" id="m-con-company" placeholder="Company name" autocomplete="organization"></div>
+      <div class="field"><label>Email</label><input class="input" id="m-con-email" type="email" placeholder="email@example.com" autocomplete="email" autocapitalize="none"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Phone</label><input class="input" id="m-con-phone" type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel"></div>
+      <div class="field"><label>LinkedIn URL</label><input class="input" id="m-con-linkedin" placeholder="linkedin.com/in/…" autocapitalize="none"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Tags <span style="font-weight:400;color:var(--text-muted);font-size:10px">(comma-separated)</span></label><input class="input" id="m-con-tags" placeholder="warm lead, VIP, referral…"></div>
+      <div class="field"><label>Source / How we met</label><input class="input" id="m-con-source" placeholder="Referral, Event, LinkedIn…"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea class="textarea" id="m-con-notes" placeholder="Key context, follow-up reminders, anything useful…"></textarea></div>`,
+    save:()=>{
+      const name=($('m-con-name').value||'').trim();if(!name)return alert('Name required');
+      const contacts=load(K.directory);
+      const fields={name,category:$('m-con-cat').value||'',company:($('m-con-company').value||'').trim(),email:($('m-con-email').value||'').trim(),phone:($('m-con-phone').value||'').trim(),linkedIn:($('m-con-linkedin').value||'').trim(),tags:($('m-con-tags').value||'').trim(),source:($('m-con-source').value||'').trim(),notes:($('m-con-notes').value||'').trim()};
+      if(_editingContactId){
+        const i=contacts.findIndex(c=>c.id===_editingContactId);
+        if(i>=0) contacts[i]={...contacts[i],...fields};
+        _editingContactId=null;
+      } else {
+        contacts.push({id:uid(),...fields,date:today()});
+      }
+      save(K.directory,contacts);closeModal();renderDirectory();
+    }},
 };
 
 let currentSaveFn=null;
@@ -2414,7 +2576,7 @@ function openModal(type,defaultTaskType){
   $('modalOverlay').classList.add('open');
   setTimeout(()=>{const first=$('modalBody').querySelector('input:not([type=date]),textarea');if(first)first.focus();},120);
 }
-function closeModal(){$('modalOverlay').classList.remove('open');currentSaveFn=null;_editingTaskId=null;_editingMeetingId=null;_editingGoalId=null;resetEim();}
+function closeModal(){$('modalOverlay').classList.remove('open');currentSaveFn=null;_editingTaskId=null;_editingMeetingId=null;_editingGoalId=null;_editingContactId=null;resetEim();}
 function closeModalOutside(e){if(e.target===$('modalOverlay'))closeModal();}
 
 // ── ICS EXPORT (kept for Meetings tab) ───────────────
@@ -2479,11 +2641,32 @@ function setMeetView(v){
 // ── Meetings Calendar ─────────────────────────────────
 let calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
 
+function meetingCard(m){
+  const oc=_OUTCOME_COLORS[m.outcome]||'var(--text-muted)';
+  const outcomeBadge=m.outcome?`<span class="outcome-badge" style="background:color-mix(in srgb,${oc} 12%,transparent);color:${oc};border:1px solid color-mix(in srgb,${oc} 28%,transparent)">${m.outcome}</span>`:'';
+  const outcomeNotes=m.outcomeNotes?`<div style="font-size:11px;color:var(--text-muted);margin-top:4px">${esc(m.outcomeNotes)}</div>`:'';
+  const preMtgNotes=m.notes&&!m.done?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.notes)}</div>`:'';
+  return `<div class="meeting-row${m.done?' done':''}">
+    <div class="meeting-time-block"><div class="meeting-time">${m.time||'—'}${m.endTime?'–'+m.endTime:''}</div><div class="meeting-date-sm">${fmtDateShort(m.date)}</div></div>
+    <div class="meeting-info">
+      <div class="meeting-title">${esc(m.title)}</div>
+      ${m.business?`<div style="margin-top:2px"><span style="font-size:10px;padding:1px 8px;border-radius:99px;background:rgba(74,222,128,.1);color:var(--green);font-weight:600">🏢 ${esc(m.business)}</span></div>`:''}
+      ${m.attendees?`<div class="meeting-attendees">${esc(m.attendees)}</div>`:''}
+      ${preMtgNotes}${outcomeBadge}${outcomeNotes}
+    </div>
+    <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
+      <button class="mtg-check${m.done?' done':''}" onclick="openOutcomeModal('${m.id}')" title="${m.done?'Edit outcome':'Mark complete'}">${m.done?'✓':''}</button>
+      <button class="delete-btn" title="Edit" onclick="editMeeting('${m.id}')" style="font-size:13px">✏️</button>
+      <button class="delete-btn" onclick="deleteMeeting('${m.id}')">✕</button>
+    </div>
+  </div>`;
+}
+
 function renderMeetings(){
   const meetings=load(K.meetings).sort((a,b)=>a.date>b.date?1:a.date<b.date?-1:a.time>b.time?1:-1);
   const el=$('meetingList');
   if(!meetings.length){el.innerHTML='<div class="empty"><span class="empty-icon">📅</span><span class="empty-text">No meetings yet.</span></div>';return;}
-  el.innerHTML=meetings.map(m=>`<div class="meeting-row"><div class="meeting-time-block"><div class="meeting-time">${m.time||'—'}${m.endTime?'–'+m.endTime:''}</div><div class="meeting-date-sm">${fmtDateShort(m.date)}</div></div><div class="meeting-info"><div class="meeting-title">${esc(m.title)}</div>${m.business?`<div style="margin-top:2px"><span style="font-size:10px;padding:1px 8px;border-radius:99px;background:rgba(74,222,128,.1);color:var(--green);font-weight:600">🏢 ${esc(m.business)}</span></div>`:''} ${m.attendees?`<div class="meeting-attendees">${esc(m.attendees)}</div>`:''} ${m.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.notes)}</div>`:''}</div><div style="display:flex;gap:4px;flex-shrink:0"><button class="delete-btn" title="Edit" onclick="editMeeting('${m.id}')" style="font-size:13px">✏️</button><button class="delete-btn" onclick="deleteMeeting('${m.id}')">✕</button></div></div>`).join('');
+  el.innerHTML=meetings.map(meetingCard).join('');
   if(_meetView==='cal') renderMeetCal();
 }
 
@@ -2557,14 +2740,19 @@ function showMeetDay(ds){
     const gcalBtn=!isGcal?`<button onclick="addMeetingToGcal('${ev.id}')" title="Add to Google Calendar" style="background:transparent;border:none;cursor:pointer;font-size:13px;padding:0;flex-shrink:0">📅</button>`:'';
     const editBtn=!isGcal?`<button class="delete-btn" title="Edit" onclick="editMeeting('${ev.id}')" style="font-size:13px">✏️</button>`:'';
     const delBtn=!isGcal?`<button class="delete-btn" onclick="deleteMeeting('${ev.id}');showMeetDay('${ds}')">✕</button>`:'';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isGcal?'rgba(66,133,244,.05)':'rgba(52,211,153,.05)'};border:1px solid ${isGcal?'rgba(66,133,244,.2)':'rgba(52,211,153,.2)'};border-radius:var(--r-sm);margin-bottom:6px">
+    const checkBtn=!isGcal?`<button class="mtg-check${ev.done?' done':''}" onclick="openOutcomeModal('${ev.id}')" title="${ev.done?'Edit outcome':'Mark complete'}">${ev.done?'✓':''}</button>`:'';
+    const oc=_OUTCOME_COLORS[ev.outcome]||'';
+    const calOutcomeBadge=ev.outcome?`<span class="outcome-badge" style="background:color-mix(in srgb,${oc} 12%,transparent);color:${oc};border:1px solid color-mix(in srgb,${oc} 28%,transparent)">${ev.outcome}</span>`:'';
+    const calOutcomeNotes=ev.outcomeNotes?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${esc(ev.outcomeNotes)}</div>`:'';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${isGcal?'rgba(66,133,244,.05)':'rgba(52,211,153,.05)'};border:1px solid ${isGcal?'rgba(66,133,244,.2)':'rgba(52,211,153,.2)'};border-radius:var(--r-sm);margin-bottom:6px${ev.done?';opacity:.72':''}">
       <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${borderCol};flex-shrink:0;min-width:40px">${ev.time||'—'}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${esc(ev.title)}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary)${ev.done?';text-decoration:line-through;color:var(--text-muted)':''}">${esc(ev.title)}</div>
         ${ev.attendees||ev.location?`<div style="font-size:11px;color:var(--text-muted)">${esc(ev.attendees||ev.location||'')}</div>`:''}
-        ${ev.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${esc(ev.notes)}</div>`:''}
+        ${ev.notes&&!ev.done?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${esc(ev.notes)}</div>`:''}
+        ${calOutcomeBadge}${calOutcomeNotes}
       </div>
-      ${badge}${editBtn}${gcalBtn}${delBtn}
+      ${badge}${checkBtn}${editBtn}${gcalBtn}${delBtn}
     </div>`;
   }).join('');
 }
@@ -2793,7 +2981,7 @@ function addMeetingToGcal(id){
 
 // ── LOGS PAGE ─────────────────────────────────────────
 let _logsTab = null;
-const LOG_TITLES = {tasks:'Tasks',meetings:'Meetings',habits:'Habits',goals:'Goals',journal:'Journal',selfdev:'Self-Development',fitness:'Fitness',review:'Weekly Review',notes:'Notes'};
+const LOG_TITLES = {tasks:'Tasks',meetings:'Meetings',habits:'Habits',goals:'Goals',journal:'Journal',selfdev:'Self-Development',fitness:'Fitness',review:'Weekly Review',notes:'Notes',directory:'Directory'};
 
 function openLogs(tab){
   _logsTab = tab;
@@ -2817,7 +3005,7 @@ function closeLogs(){
 
 function renderCurrentLogs(q){
   if(!_logsTab) return;
-  const renders = {tasks:renderLogsT,meetings:renderLogsM,habits:renderLogsH,goals:renderLogsG,journal:renderLogsJ,selfdev:renderLogsSD,fitness:renderLogsF,review:renderLogsR,notes:renderLogsN};
+  const renders = {tasks:renderLogsT,meetings:renderLogsM,habits:renderLogsH,goals:renderLogsG,journal:renderLogsJ,selfdev:renderLogsSD,fitness:renderLogsF,review:renderLogsR,notes:renderLogsN,directory:renderLogsDir};
   if(renders[_logsTab]) renders[_logsTab](q||'');
 }
 
@@ -3074,6 +3262,230 @@ function closeMobSidebar(){
   document.getElementById('mobBackdrop').classList.remove('on');
 }
 
+// ── DIRECTORY ────────────────────────────────────────
+let _dirCatFilter='';
+let _editingContactId=null;
+
+const DIR_CAT_COLORS={
+  'Client':'#4ade80','Lead':'#fbbf24','Partner':'#22d3ee','Investor':'#a78bfa',
+  'Mentor':'#f472b6','Colleague':'#60a5fa','Friend':'#34d399','Vendor':'#fb923c',
+  'Referral':'#86efac','Other':'rgba(255,255,255,.3)'
+};
+
+function _dirAvatarColor(name){
+  let h=0;for(let i=0;i<(name||'').length;i++) h=(h*31+name.charCodeAt(i))&0xffffff;
+  return `hsl(${h%360},55%,58%)`;
+}
+
+function renderDirectory(){
+  const q=(($('dirSearch')||{}).value||'').toLowerCase();
+  const contacts=load(K.directory);
+
+  // Category chips
+  const cats=[...new Set(contacts.map(c=>c.category||'Other'))].filter(Boolean).sort();
+  const chipEl=$('dirCategoryChips');
+  if(chipEl) chipEl.innerHTML=[
+    `<button class="dir-filter-chip${!_dirCatFilter?' on':''}" onclick="_dirCatFilter='';renderDirectory()">All <span style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:.7">${contacts.length}</span></button>`,
+    ...cats.map(cat=>{
+      const n=contacts.filter(c=>(c.category||'Other')===cat).length;
+      return `<button class="dir-filter-chip${_dirCatFilter===cat?' on':''}" data-cat="${esc(cat)}" onclick="_dirCatFilter=this.dataset.cat;renderDirectory()">${esc(cat)} <span style="font-family:'JetBrains Mono',monospace;font-size:9px;opacity:.7">${n}</span></button>`;
+    })
+  ].join('');
+
+  // Pill count
+  const pill=$('pill-directory');
+  if(pill) pill.textContent=contacts.length||'';
+
+  let filtered=contacts;
+  if(_dirCatFilter) filtered=filtered.filter(c=>(c.category||'Other')===_dirCatFilter);
+  if(q) filtered=filtered.filter(c=>
+    (c.name||'').toLowerCase().includes(q)||
+    (c.company||'').toLowerCase().includes(q)||
+    (c.email||'').toLowerCase().includes(q)||
+    (c.phone||'').toLowerCase().includes(q)||
+    (c.tags||'').toLowerCase().includes(q)||
+    (c.notes||'').toLowerCase().includes(q)||
+    (c.category||'').toLowerCase().includes(q)||
+    (c.source||'').toLowerCase().includes(q)
+  );
+  filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+
+  const statsEl=$('dirStats');
+  if(statsEl) statsEl.textContent=filtered.length===contacts.length
+    ?`${contacts.length} contact${contacts.length!==1?'s':''}`
+    :`${filtered.length} of ${contacts.length} contacts`;
+
+  const el=$('dirList');if(!el)return;
+  if(!filtered.length){
+    el.innerHTML=contacts.length
+      ?'<div class="empty"><span class="empty-icon">🔍</span><span class="empty-text">No contacts match your search.</span></div>'
+      :'<div class="empty"><span class="empty-icon">👥</span><span class="empty-text">No contacts yet. Add one or import a CSV.</span></div>';
+    return;
+  }
+
+  el.innerHTML=filtered.map(c=>{
+    const color=_dirAvatarColor(c.name||'?');
+    const catColor=DIR_CAT_COLORS[c.category]||'rgba(255,255,255,.25)';
+    const initial=(c.name||'?').charAt(0).toUpperCase();
+    const metaParts=[c.company,c.email,c.phone].filter(Boolean);
+    const tagChips=(c.tags||'').split(',').map(t=>t.trim()).filter(Boolean)
+      .map(t=>`<span style="font-size:9px;padding:1px 7px;border-radius:99px;background:rgba(255,255,255,.06);color:var(--text-muted);border:1px solid var(--border)">${esc(t)}</span>`).join('');
+    return `<div class="dir-row">
+      <div class="dir-avatar" style="background:color-mix(in srgb,${color} 14%,transparent);border:1px solid color-mix(in srgb,${color} 35%,transparent);color:${color}">${initial}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:1px">
+          <span class="dir-name">${esc(c.name)}</span>
+          ${c.category?`<span class="dir-cat" style="background:color-mix(in srgb,${catColor} 14%,transparent);color:${catColor};border:1px solid color-mix(in srgb,${catColor} 28%,transparent)">${esc(c.category)}</span>`:''}
+          ${tagChips}
+        </div>
+        ${metaParts.length?`<div class="dir-meta">${metaParts.map(p=>esc(p)).join(' · ')}</div>`:''}
+        ${c.linkedIn?`<div style="font-size:10px;color:var(--text-muted);margin-top:1px">🔗 ${esc(c.linkedIn)}</div>`:''}
+        ${c.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:480px">${esc(c.notes)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="delete-btn" title="Edit" onclick="editContact('${c.id}')" style="font-size:13px">✏️</button>
+        <button class="delete-btn" onclick="deleteContact('${c.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function editContact(id){
+  const c=load(K.directory).find(x=>x.id===id);if(!c)return;
+  _editingContactId=id;
+  openModal('contact');
+  setTimeout(()=>{
+    if($('m-con-name'))     $('m-con-name').value=c.name||'';
+    if($('m-con-company'))  $('m-con-company').value=c.company||'';
+    if($('m-con-email'))    $('m-con-email').value=c.email||'';
+    if($('m-con-phone'))    $('m-con-phone').value=c.phone||'';
+    if($('m-con-linkedin')) $('m-con-linkedin').value=c.linkedIn||'';
+    if($('m-con-source'))   $('m-con-source').value=c.source||'';
+    if($('m-con-tags'))     $('m-con-tags').value=c.tags||'';
+    if($('m-con-notes'))    $('m-con-notes').value=c.notes||'';
+    if(c.category){
+      document.querySelectorAll('#m-con-cat-chips button').forEach(b=>{
+        if(b.dataset.cat===c.category) selectDirCatChip(b,c.category);
+      });
+    }
+    if($('modalTitle')) $('modalTitle').textContent='Edit Contact';
+  },60);
+}
+
+function deleteContact(id){
+  save(K.directory,load(K.directory).filter(c=>c.id!==id));
+  renderDirectory();
+  if(_logsTab==='directory') renderCurrentLogs('');
+}
+
+function selectDirCatChip(btn,cat){
+  document.querySelectorAll('#m-con-cat-chips button').forEach(b=>{
+    b.style.cssText='padding:4px 12px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:\'Outfit\',sans-serif;font-size:12px;font-weight:500;transition:all .15s';
+  });
+  btn.style.borderColor='var(--t-directory)';
+  btn.style.background='color-mix(in srgb,var(--t-directory) 12%,transparent)';
+  btn.style.color='var(--t-directory)';
+  if($('m-con-cat')) $('m-con-cat').value=cat;
+}
+
+// ── CSV Import / Export ───────────────────────────────
+function _parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  if(lines.length<2) return [];
+
+  // Parse a single CSV line respecting quotes
+  function parseLine(line){
+    const row=[];let cur='';let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+      else if(ch===','&&!inQ){row.push(cur.trim());cur='';}
+      else cur+=ch;
+    }
+    row.push(cur.trim());
+    return row;
+  }
+
+  const headers=parseLine(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim());
+  const pick=(candidates)=>{for(const c of candidates){const i=headers.findIndex(h=>h.includes(c));if(i>=0)return i;}return -1;};
+
+  const iName   =pick(['name','full name','contact name','contact']);
+  const iEmail  =pick(['email','e-mail','mail']);
+  const iPhone  =pick(['phone','tel','mobile','cell','number']);
+  const iCompany=pick(['company','organization','org','business','employer']);
+  const iCat    =pick(['category','type','role','group','label']);
+  const iTags   =pick(['tags','labels','keywords','multi']);
+  const iNotes  =pick(['notes','note','description','bio','about','summary','comments']);
+  const iLinked =pick(['linkedin','linked in','profile url','url']);
+  const iSource =pick(['source','how','origin','referral','met']);
+
+  if(iName<0) return [];
+
+  const g=(row,i)=>i>=0&&i<row.length?row[i].replace(/^"|"$/g,'').trim():'';
+
+  return lines.slice(1).map(l=>{
+    const row=parseLine(l);
+    const name=g(row,iName);
+    if(!name) return null;
+    return {id:uid(),name,email:g(row,iEmail),phone:g(row,iPhone),company:g(row,iCompany),category:g(row,iCat),tags:g(row,iTags),notes:g(row,iNotes),linkedIn:g(row,iLinked),source:g(row,iSource),date:today()};
+  }).filter(Boolean);
+}
+
+function importContacts(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const parsed=_parseCSV(e.target.result);
+    if(!parsed.length){showToast('No contacts found — check the CSV has a Name column','var(--red)');input.value='';return;}
+    const existing=load(K.directory);
+    const deduped=parsed.filter(c=>!existing.some(e=>e.name===c.name&&e.email===c.email&&e.email!==''));
+    const added=deduped.length;
+    save(K.directory,[...existing,...deduped]);
+    renderDirectory();
+    showToast(`Imported ${added} contact${added!==1?'s':''}${parsed.length-added>0?' ('+( parsed.length-added)+' duplicates skipped)':''}`);
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+
+function exportContacts(){
+  const contacts=load(K.directory);
+  if(!contacts.length){showToast('No contacts to export','var(--yellow)');return;}
+  const q=v=>v?`"${(v||'').replace(/"/g,'""')}"`:'' ;
+  const header='Name,Category,Company,Email,Phone,LinkedIn,Tags,Source,Notes,Date Added';
+  const rows=contacts.map(c=>[c.name,c.category,c.company,c.email,c.phone,c.linkedIn,c.tags,c.source,c.notes,c.date].map(q).join(','));
+  const csv=[header,...rows].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`LeanHQ-Directory-${today()}.csv`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  showToast(`Exported ${contacts.length} contacts`);
+}
+
+// ── Directory Logs ────────────────────────────────────
+function renderLogsDir(q){
+  const q_=(q||'').toLowerCase();
+  const all=load(K.directory).filter(c=>!q_||
+    (c.name||'').toLowerCase().includes(q_)||
+    (c.company||'').toLowerCase().includes(q_)||
+    (c.email||'').toLowerCase().includes(q_)||
+    (c.category||'').toLowerCase().includes(q_)||
+    (c.tags||'').toLowerCase().includes(q_)
+  );
+  logsCount(all.length+' contacts');
+  const rows=[...all].sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(c=>dbRow([
+    `<strong style="color:var(--text-primary)">${esc(c.name)}</strong>`,
+    c.category?`<span style="font-size:10px;padding:1px 8px;border-radius:99px;background:color-mix(in srgb,${DIR_CAT_COLORS[c.category]||'rgba(255,255,255,.2)'} 14%,transparent);color:${DIR_CAT_COLORS[c.category]||'var(--text-muted)'};border:1px solid color-mix(in srgb,${DIR_CAT_COLORS[c.category]||'rgba(255,255,255,.2)'} 25%,transparent)">${esc(c.category)}</span>`:'—',
+    esc(c.company||'—'),
+    c.email?`<span style="font-size:11px">${esc(c.email)}</span>`:'—',
+    esc(c.phone||'—'),
+    c.tags?`<span style="font-size:11px;color:var(--text-muted)">${esc(c.tags)}</span>`:'—',
+    `<span style="max-width:200px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--text-muted)">${esc(c.notes||'—')}</span>`,
+    dbDelBtn('deleteContact',c.id)
+  ]));
+  logsHtml(dbTable(['Name','Category','Company','Email','Phone','Tags','Notes',''],rows));
+}
+
 // ── Obsidian Sync ─────────────────────────────────────
 const OBS_PORT = 27124; // HTTPS port (required when LeanHQ is served over HTTPS)
 const OBS_KEY_MAP = {
@@ -3083,7 +3495,8 @@ const OBS_KEY_MAP = {
   [K.knowledge]:'Knowledge.md',
   [K.workouts]:'Fitness.md', [K.metrics]:'Fitness.md',
   [K.reviews]:'Weekly Reviews.md',
-  [K.notes]:'Notes.md'
+  [K.notes]:'Notes.md',
+  [K.directory]:'Directory.md'
 };
 const _obsThrottle={};
 
