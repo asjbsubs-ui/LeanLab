@@ -1340,7 +1340,13 @@ function renderTasks(){
   if(filter==='active') all=all.filter(t=>!t.done);
   else if(filter==='done') all=all.filter(t=>t.done);
   else if(filter==='high') all=all.filter(t=>t.priority==='High');
-  all.sort((a,b)=>{const p={High:0,Medium:1,Low:2};return(p[a.priority]||1)-(p[b.priority]||1)||a.done-b.done;});
+  all.sort((a,b)=>{
+    if(a.done!==b.done) return a.done-b.done;
+    const da=a.due||'9999-99-99', db=b.due||'9999-99-99';
+    if(da!==db) return da.localeCompare(db);
+    const p={High:0,Medium:1,Low:2};
+    return (p[a.priority]||1)-(p[b.priority]||1);
+  });
   const work=all.filter(t=>(t.type||'work')==='work');
   const personal=all.filter(t=>t.type==='personal');
   const active=load(K.tasks).filter(t=>!t.done).length;
