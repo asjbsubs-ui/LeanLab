@@ -2649,15 +2649,19 @@ const MODAL_FORMS = {
       metrics.push({id:uid(),date:$('m-met-date').value||today(),weight:kgVal,notes:$('m-met-notes').value.trim()});
       save(K.metrics,metrics);closeModal();renderFitness();
     }},
-  contact:{title:'New Contact',html:`
+  contact:{title:'New Contact',html:()=>{
+    const _defaults=['Client','Lead','Partner','Investor','Mentor','Colleague','Friend','Vendor','Referral','Other'];
+    const _imported=[...new Set(load(K.directory).map(c=>c.category).filter(Boolean))];
+    const _cats=[...new Set([..._defaults,..._imported])];
+    return `
     <div class="field"><label>Name *</label><input class="input" id="m-con-name" placeholder="Full name" autocomplete="name"></div>
     <div class="field">
-      <label>Category</label>
+      <label>Category <span style="font-weight:400;color:var(--text-muted);font-size:10px">(tap to select, tap again to clear)</span></label>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px" id="m-con-cat-chips">
-        ${['Client','Lead','Partner','Investor','Mentor','Colleague','Friend','Vendor','Referral','Other'].map(cat=>`<button type="button" data-cat="${cat}" onclick="selectDirCatChip(this,'${cat}')" style="padding:4px 12px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;transition:all .15s">${cat}</button>`).join('')}
+        ${_cats.map(cat=>`<button type="button" data-cat="${cat}" onclick="selectDirCatChip(this,'${cat}')" style="padding:4px 12px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;transition:all .15s">${cat}</button>`).join('')}
       </div>
       <input type="hidden" id="m-con-cat" value="">
-    </div>
+    </div>`;
     <div class="field-row">
       <div class="field"><label>Company / Organization</label><input class="input" id="m-con-company" placeholder="Company name" autocomplete="organization"></div>
       <div class="field"><label>Email</label><input class="input" id="m-con-email" type="email" placeholder="email@example.com" autocomplete="email" autocapitalize="none"></div>
@@ -2670,7 +2674,8 @@ const MODAL_FORMS = {
       <div class="field"><label>Tags <span style="font-weight:400;color:var(--text-muted);font-size:10px">(comma-separated)</span></label><input class="input" id="m-con-tags" placeholder="warm lead, VIP, referral…"></div>
       <div class="field"><label>Source / How we met</label><input class="input" id="m-con-source" placeholder="Referral, Event, LinkedIn…"></div>
     </div>
-    <div class="field"><label>Notes</label><textarea class="textarea" id="m-con-notes" placeholder="Key context, follow-up reminders, anything useful…"></textarea></div>`,
+    <div class="field"><label>Notes</label><textarea class="textarea" id="m-con-notes" placeholder="Key context, follow-up reminders, anything useful…"></textarea></div>`;
+  },
     save:()=>{
       const name=($('m-con-name').value||'').trim();if(!name)return alert('Name required');
       const contacts=load(K.directory);
@@ -2690,7 +2695,7 @@ let currentSaveFn=null;
 function openModal(type,defaultTaskType){
   const f=MODAL_FORMS[type];if(!f)return;
   $('modalTitle').textContent=f.title;
-  $('modalBody').innerHTML=f.html;
+  $('modalBody').innerHTML=typeof f.html==='function'?f.html():f.html;
   $('modalFoot').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="currentSaveFn()">${f.title.startsWith('Log')||f.title.startsWith('Add')?f.title:'Save'}</button>`;
   $('modalBody').querySelectorAll('input[type=date]').forEach(el=>{if(!el.value)el.value=today();});
   // Pre-select task type if provided
@@ -3517,13 +3522,18 @@ function deleteContact(id){
 }
 
 function selectDirCatChip(btn,cat){
+  const alreadySelected=($('m-con-cat')||{value:''}).value===cat;
   document.querySelectorAll('#m-con-cat-chips button').forEach(b=>{
     b.style.cssText='padding:4px 12px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:\'Outfit\',sans-serif;font-size:12px;font-weight:500;transition:all .15s';
   });
-  btn.style.borderColor='var(--t-directory)';
-  btn.style.background='color-mix(in srgb,var(--t-directory) 12%,transparent)';
-  btn.style.color='var(--t-directory)';
-  if($('m-con-cat')) $('m-con-cat').value=cat;
+  if(!alreadySelected){
+    btn.style.borderColor='var(--t-directory)';
+    btn.style.background='color-mix(in srgb,var(--t-directory) 12%,transparent)';
+    btn.style.color='var(--t-directory)';
+    if($('m-con-cat')) $('m-con-cat').value=cat;
+  } else {
+    if($('m-con-cat')) $('m-con-cat').value='';
+  }
 }
 
 // ── CSV Import / Export ───────────────────────────────
