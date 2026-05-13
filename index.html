@@ -502,6 +502,15 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
   .disc-score{font-size:36px}
   .discipline-ring{gap:12px;flex-wrap:wrap}
   #habitMonthList{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #habits-day-header{display:none!important}
+  .habit-row{flex-wrap:wrap;row-gap:6px;padding:10px 0}
+  .habit-drag{order:1}
+  .habit-icon{order:2}
+  .habit-name-wrap{order:3;flex:1}
+  .habit-streak-col{order:4;margin-left:auto}
+  .habit-row .delete-btn{order:5}
+  .habit-days{order:6;flex:0 0 100%;display:flex;gap:6px;padding-left:30px}
+  .habit-days .h-dot{width:18px;height:18px;flex-shrink:0}
   .logs-content{padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
   .stat-block{padding:12px}
   .stat-val{font-size:22px}
@@ -1525,7 +1534,7 @@ function renderHabits(){
   const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
   const dayLabels=days.map(d=>new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short'}));
   el.innerHTML=`
-    <div style="display:flex;align-items:center;gap:12px;padding:8px 0 12px;border-bottom:1px solid var(--border);margin-bottom:4px">
+    <div id="habits-day-header" style="display:flex;align-items:center;gap:12px;padding:8px 0 12px;border-bottom:1px solid var(--border);margin-bottom:4px">
       <div style="flex:1"></div>
       ${dayLabels.map((l,i)=>`<div style="width:24px;text-align:center;font-size:9px;color:${days[i]===today()?'var(--t-habits)':'var(--text-muted)'};font-weight:700;letter-spacing:.06em;text-transform:uppercase">${l}</div>`).join('')}
       <div style="width:60px;text-align:center;font-size:9px;color:var(--text-muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase">Streak</div>
@@ -1535,15 +1544,15 @@ function renderHabits(){
     <div class="habit-row" ondragover="habitDragOver(event,'${h.id}')" ondrop="habitDrop(event,'${h.id}')" ondragleave="this.classList.remove('drag-over')">
       <span class="habit-drag" draggable="true" ondragstart="habitDragStart(event,'${h.id}')" ondragend="habitDragEnd()" title="Drag to reorder">⠿</span>
       <div class="habit-icon">${h.icon||'⭐'}</div>
-      <div class="habit-info" style="flex:1;min-width:0">
+      <div class="habit-name-wrap" style="flex:1;min-width:0">
         <div class="habit-name">${esc(h.name)}</div>
       </div>
-      ${days.map(d=>{
+      <div class="habit-days">${days.map(d=>{
         const done=(log[d]||[]).includes(h.id);
         const isToday=d===today();
         return `<div class="h-dot ${done?'done':''} ${isToday&&!done?'today':''}" onclick="${isToday?`toggleHabitHome('${h.id}')`:'void(0)'}" title="${d}">${done?'✓':''}</div>`;
-      }).join('')}
-      <div style="width:60px;text-align:center"><span class="habit-streak">${h.streak||0}🔥</span></div>
+      }).join('')}</div>
+      <div class="habit-streak-col"><span class="habit-streak">${h.streak||0}🔥</span></div>
       <button class="delete-btn" onclick="deleteHabit('${h.id}')">✕</button>
     </div>`).join('');
   updateScore();
