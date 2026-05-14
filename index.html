@@ -276,6 +276,29 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
 .meeting-attendees{font-size:11px;color:var(--text-muted)}
 .meeting-row.done{opacity:.72}
 .meeting-row.done .meeting-title{text-decoration:line-through;color:var(--text-muted)}
+/* ── Pomodoro ── */
+.pom-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px}
+.pom-card{background:var(--bg-card);border:1px solid var(--border-md);border-radius:var(--r-xl);padding:24px 22px 22px;width:100%;max-width:300px;text-align:center;position:relative;overflow:hidden}
+.pom-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--pc,#86efac),transparent)}
+.pom-task-name{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 28px}
+.pom-modes{display:flex;gap:3px;background:var(--bg-alt);border-radius:var(--r-sm);padding:3px;margin-bottom:18px}
+.pom-mode-btn{flex:1;padding:4px;border-radius:5px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;font-size:9px;font-weight:700;font-family:'Outfit',sans-serif;letter-spacing:.04em;transition:all .12s;-webkit-tap-highlight-color:transparent}
+.pom-mode-btn.on{background:var(--bg);color:var(--text-primary)}
+.pom-ring-wrap{position:relative;width:150px;height:150px;margin:0 auto 16px}
+.pom-ring-wrap svg{transform:rotate(-90deg)}
+.pom-ring-bg{fill:none;stroke:rgba(255,255,255,.07);stroke-width:7}
+.pom-ring-fill{fill:none;stroke:var(--pc,#86efac);stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .95s linear,stroke .3s}
+.pom-time-display{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:700;color:var(--text-bright);line-height:1;letter-spacing:.02em}
+.pom-label{font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--pc,#86efac);margin-bottom:14px}
+.pom-dots{display:flex;justify-content:center;gap:8px;margin-bottom:20px}
+.pom-dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--border-strong);transition:all .3s}
+.pom-dot.done{background:var(--pc,#86efac);border-color:var(--pc,#86efac)}
+.pom-dot.active{border-color:var(--pc,#86efac);box-shadow:0 0 0 2px color-mix(in srgb,var(--pc,#86efac) 25%,transparent)}
+.pom-controls{display:flex;align-items:center;justify-content:center;gap:12px}
+.pom-play{width:58px;height:58px;border-radius:50%;border:none;background:var(--pc,#86efac);color:#000;font-size:20px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;flex-shrink:0}
+.pom-play:hover{filter:brightness(1.12)}
+.pom-ctrl{width:38px;height:38px;border-radius:50%;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);font-size:15px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.pom-ctrl:hover{border-color:var(--border-strong);color:var(--text-primary)}
 /* ── Directory ── */
 .dir-row{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--border);transition:background .1s}
 .dir-row:last-child{border-bottom:none}
@@ -1134,6 +1157,35 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
   </div>
 </div>
 
+<!-- POMODORO TIMER -->
+<div id="pomOverlay" class="pom-overlay">
+  <div class="pom-card" id="pomCard">
+    <button onclick="closePomodoro()" style="position:absolute;top:10px;right:12px;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:4px;line-height:1">✕</button>
+    <div class="pom-task-name" id="pomTaskName">Task</div>
+    <div class="pom-modes">
+      <button class="pom-mode-btn on" id="pmFocus" onclick="setPomMode('focus')">Focus 25m</button>
+      <button class="pom-mode-btn" id="pmShort" onclick="setPomMode('short')">Break 5m</button>
+      <button class="pom-mode-btn" id="pmLong"  onclick="setPomMode('long')">Long 15m</button>
+    </div>
+    <div class="pom-ring-wrap">
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <circle class="pom-ring-bg" cx="75" cy="75" r="64"/>
+        <circle class="pom-ring-fill" id="pomRing" cx="75" cy="75" r="64" stroke-dasharray="402.12" stroke-dashoffset="0"/>
+      </svg>
+      <div class="pom-time-display" id="pomTime">25:00</div>
+    </div>
+    <div class="pom-label" id="pomLabel">FOCUS</div>
+    <div class="pom-dots" id="pomDots">
+      <div class="pom-dot active"></div><div class="pom-dot"></div><div class="pom-dot"></div><div class="pom-dot"></div>
+    </div>
+    <div class="pom-controls">
+      <button class="pom-ctrl" onclick="pomReset()" title="Reset">↺</button>
+      <button class="pom-play" id="pomPlayBtn" onclick="pomToggle()">▶</button>
+      <button class="pom-ctrl" onclick="pomSkip()" title="Skip">⏭</button>
+    </div>
+  </div>
+</div>
+
 <!-- VIDEO RECORDER -->
 <div id="vmOverlay" class="vm-overlay">
   <div id="vmLivePhase" style="position:relative;flex:1;overflow:hidden">
@@ -1425,6 +1477,7 @@ function taskCard(t){
       </div>
     </div>
     <div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="delete-btn" title="Pomodoro timer" onclick="openPomodoro('${t.id}')" style="font-size:13px">🍅</button>
       <button class="delete-btn" title="Edit" onclick="editTask('${t.id}')" style="font-size:13px">✏️</button>
       ${t.due?`<button class="delete-btn" title="Add to Calendar" onclick="addTaskToGcal('${t.id}')" style="font-size:13px">📅</button>`:''}
       <button class="delete-btn" onclick="deleteTask('${t.id}')">✕</button>
@@ -3864,6 +3917,119 @@ function renderLogsDir(q){
     dbDelBtn('deleteContact',c.id)
   ]));
   logsHtml(dbTable(['Name','Category','Company','Email','Phone','Tags','Notes',''],rows));
+}
+
+// ── POMODORO ──────────────────────────────────────────
+const POM_DUR={focus:25*60,short:5*60,long:15*60};
+const POM_COL={focus:'#86efac',short:'#60a5fa',long:'#a78bfa'};
+const POM_LAB={focus:'FOCUS',short:'SHORT BREAK',long:'LONG BREAK'};
+const POM_CIRC=2*Math.PI*64; // 402.12
+let _pomMode='focus',_pomSecs=25*60,_pomRunning=false;
+let _pomInterval=null,_pomDone=0,_pomTaskId=null;
+
+function openPomodoro(id){
+  const t=load(K.tasks).find(x=>x.id===id);if(!t)return;
+  _pomTaskId=id;_pomDone=0;
+  $('pomTaskName').textContent=t.title;
+  setPomMode('focus',true);
+  // Request notification permission
+  if(typeof Notification!=='undefined'&&Notification.permission==='default')
+    Notification.requestPermission();
+  $('pomOverlay').style.display='flex';
+}
+
+function closePomodoro(){
+  clearInterval(_pomInterval);_pomRunning=false;_pomInterval=null;
+  $('pomOverlay').style.display='none';
+  document.title='LeanHQ by StreamLean';
+}
+
+function setPomMode(mode,reset=true){
+  _pomMode=mode;
+  if(reset){clearInterval(_pomInterval);_pomRunning=false;_pomSecs=POM_DUR[mode];}
+  const col=POM_COL[mode];
+  const card=$('pomCard');if(card)card.style.setProperty('--pc',col);
+  ['pmFocus','pmShort','pmLong'].forEach((id,i)=>{
+    const b=$(id);if(b)b.classList.toggle('on',['focus','short','long'][i]===mode);
+  });
+  const lbl=$('pomLabel');if(lbl)lbl.textContent=POM_LAB[mode];
+  const btn=$('pomPlayBtn');if(btn)btn.textContent=_pomRunning?'⏸':'▶';
+  _pomUpdateRing();_pomUpdateTime();_pomUpdateDots();
+}
+
+function pomToggle(){
+  if(_pomRunning){
+    clearInterval(_pomInterval);_pomRunning=false;
+    const b=$('pomPlayBtn');if(b)b.textContent='▶';
+  } else {
+    _pomRunning=true;
+    const b=$('pomPlayBtn');if(b)b.textContent='⏸';
+    _pomInterval=setInterval(()=>{
+      if(_pomSecs<=0){_pomComplete();return;}
+      _pomSecs--;_pomUpdateTime();_pomUpdateRing();
+    },1000);
+  }
+}
+
+function pomReset(){
+  clearInterval(_pomInterval);_pomRunning=false;_pomSecs=POM_DUR[_pomMode];
+  const b=$('pomPlayBtn');if(b)b.textContent='▶';
+  _pomUpdateTime();_pomUpdateRing();
+}
+
+function pomSkip(){
+  clearInterval(_pomInterval);_pomRunning=false;
+  if(_pomMode==='focus'){_pomDone++;setPomMode(_pomDone%4===0?'long':'short',true);}
+  else setPomMode('focus',true);
+  _pomUpdateDots();
+}
+
+function _pomComplete(){
+  clearInterval(_pomInterval);_pomRunning=false;
+  const btn=$('pomPlayBtn');if(btn)btn.textContent='▶';
+  // Beep
+  try{const ac=new(window.AudioContext||window.webkitAudioContext)();
+    [0,.25,.5].forEach(t=>{const o=ac.createOscillator(),g=ac.createGain();
+      o.connect(g);g.connect(ac.destination);o.frequency.value=880;
+      g.gain.setValueAtTime(.25,ac.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+t+.35);
+      o.start(ac.currentTime+t);o.stop(ac.currentTime+t+.35);
+    });
+  }catch(e){}
+  // Notification
+  try{if(Notification.permission==='granted')
+    new Notification('LeanHQ',{body:_pomMode==='focus'?'🍅 Focus done! Take a break.':'☀️ Break over — time to focus!'});
+  }catch(e){}
+  if(_pomMode==='focus'){
+    _pomDone++;
+    _pomUpdateDots();
+    showToast('🍅 Focus session complete!');
+    setPomMode(_pomDone%4===0?'long':'short',true);
+  } else {
+    showToast('☀️ Break over — back to work!');
+    setPomMode('focus',true);
+  }
+}
+
+function _pomUpdateTime(){
+  const m=Math.floor(_pomSecs/60),s=_pomSecs%60;
+  const str=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const el=$('pomTime');if(el)el.textContent=str;
+  if(_pomRunning)document.title=`${str} · LeanHQ`;
+  else document.title='LeanHQ by StreamLean';
+}
+
+function _pomUpdateRing(){
+  const ring=$('pomRing');if(!ring)return;
+  const progress=_pomSecs/POM_DUR[_pomMode];
+  ring.style.strokeDashoffset=POM_CIRC*(1-progress);
+}
+
+function _pomUpdateDots(){
+  const el=$('pomDots');if(!el)return;
+  el.innerHTML=[0,1,2,3].map(i=>
+    `<div class="pom-dot${i<_pomDone?' done':i===_pomDone?' active':''}"></div>`
+  ).join('');
 }
 
 // ── Supabase Storage helpers ─────────────────────────
