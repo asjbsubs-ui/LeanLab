@@ -1255,7 +1255,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
 <script>
 // ── Helpers ──────────────────────────────────────────
 const $ = id => document.getElementById(id);
-const today = () => new Date().toISOString().slice(0,10);
+const today = () => new Date().toLocaleDateString('sv'); // local date YYYY-MM-DD, not UTC
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -4371,7 +4371,7 @@ function obsMarkdown(file){
   }
   if(file==='Meetings.md'){
     const meetings=load(K.meetings).sort((a,b)=>a.date>b.date?1:-1);
-    const today=new Date().toISOString().slice(0,10);
+    const today=new Date().toLocaleDateString('sv');
     const upcoming=meetings.filter(m=>m.date>=today);
     const past=meetings.filter(m=>m.date<today);
     const row=m=>`### ${m.date}${m.time?' at '+m.time:''} · ${m.title}\n${m.business?'**Business:** '+m.business+'\n':''}${m.attendees?'**Attendees:** '+m.attendees+'\n':''}${m.notes?'**Notes:** '+m.notes+'\n':''}`;
@@ -4380,7 +4380,7 @@ function obsMarkdown(file){
   if(file==='Habits.md'){
     const habits=load(K.habits);
     const log=JSON.parse(localStorage.getItem(K.habitLog)||'{}');
-    const todayStr=new Date().toISOString().slice(0,10);
+    const todayStr=new Date().toLocaleDateString('sv');
     const todayLog=log[todayStr]||[];
     const rows=habits.map(h=>`| ${h.icon||'⭐'} ${h.name} | ${h.streak||0}🔥 | ${todayLog.includes(h.id)?'✅':'❌'} |`).join('\n');
     const done=habits.filter(h=>todayLog.includes(h.id)).length;
