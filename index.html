@@ -3188,7 +3188,7 @@ function renderMeetCal(){
   const firstDay=new Date(year,month,1).getDay();
   const daysInMonth=new Date(year,month+1,0).getDate();
   const monthLabel=new Date(year,month,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
-  const offset=firstDay===0?6:firstDay-1;
+  const offset=firstDay; // Sunday=0
   const todayStr=today();
   const connected=localStorage.getItem('ahq_gcal_connected')==='true';
 
@@ -3225,7 +3225,7 @@ function renderMeetCal(){
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--t-meetings);margin-right:4px"></span>My Meetings</span>
       ${connected?'<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4285f4;margin-right:4px"></span>Google Calendar</span>':''}
     </div>
-    <div class="meet-cal-grid-hd">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="meet-cal-dow">${d}</div>`).join('')}</div>
+    <div class="meet-cal-grid-hd">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="meet-cal-dow">${d}</div>`).join('')}</div>
     <div class="meet-cal-grid">${cells}</div>
     <div id="meetDayPanel" class="meet-day-panel" style="display:none"></div>`;
 
