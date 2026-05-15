@@ -1918,10 +1918,10 @@ function renderJournal(){
       selectedMood=todayEntry.mood;
     }
   }
-  const past=entries.filter(e=>e.date!==today());
-  if(!past.length){el.innerHTML='<div class="empty"><span class="empty-icon">📖</span><span class="empty-text">No past entries yet.</span></div>';return;}
+  if(!entries.length){el.innerHTML='<div class="empty"><span class="empty-icon">📖</span><span class="empty-text">No entries yet.</span></div>';return;}
   const moods=['','😩','😞','😐','😊','🔥'];
-  el.innerHTML=past.map(e=>`<div class="journal-entry" onclick="loadJournalEntry('${e.id}')"><div class="je-date">${fmtDate(e.date)}</div><div class="je-preview"><span class="je-mood">${moods[e.mood]||''}</span>${esc((e.dump||e.grat||e.intent||'').slice(0,80))}…</div></div>`).join('');
+  const t=today();
+  el.innerHTML=entries.map(e=>`<div class="journal-entry" onclick="loadJournalEntry('${e.id}')"><div class="je-date">${e.date===t?'Today':fmtDate(e.date)}</div><div class="je-preview"><span class="je-mood">${moods[e.mood]||''}</span>${esc((e.dump||e.grat||e.intent||'').slice(0,80))}…</div></div>`).join('');
 }
 function loadJournalEntry(id){
   const e=load(K.journal).find(x=>x.id===id);
