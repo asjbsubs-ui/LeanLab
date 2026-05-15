@@ -3538,7 +3538,7 @@ function renderLogsM(q){
       esc(m.attendees||'—'),
       outcomeBadge,
       m.outcomeNotes?`<span style="max-width:200px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px">${esc(m.outcomeNotes)}</span>`:'—',
-      dbDelBtn('deleteMeeting',m.id)
+      `<button onclick="editMeeting('${m.id}')" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:3px 7px;border-radius:3px" onmouseover="this.style.color='var(--t-meetings)'" onmouseout="this.style.color='var(--text-muted)'">✏️</button>`+dbDelBtn('deleteMeeting',m.id)
     ]);
   });
   logsHtml(dbTable(['Date','Time','Title','Business','Attendees','Outcome','Post-Meeting Notes',''],rows));
