@@ -1121,6 +1121,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
     <span class="logs-page-title" id="logs-title">Logs</span>
     <input class="db-search" id="logs-search" placeholder="Search…" oninput="renderCurrentLogs(this.value)">
     <span class="db-count" id="logs-count"></span>
+    <button id="logs-trash-btn" onclick="scrollToTrash()" style="display:none;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;flex-shrink:0;transition:all .15s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border-md)';this.style.color='var(--text-muted)'">🗑️ Trash <span id="logs-trash-count" style="background:rgba(255,80,80,.15);color:var(--red);border-radius:99px;padding:0 5px;font-size:10px;font-weight:700"></span></button>
   </div>
   <div class="logs-content" id="logs-content"></div>
 </div>
@@ -3630,6 +3631,7 @@ function openLogs(tab){
 function closeLogs(){
   _logsTab = null;
   document.getElementById('logs-page').style.display = 'none';
+  const btn=document.getElementById('logs-trash-btn');if(btn)btn.style.display='none';
   document.querySelectorAll('.tab-panel').forEach(p=>{
     p.style.display = p.classList.contains('active') ? 'block' : 'none';
   });
@@ -3679,6 +3681,11 @@ function _trashSummary(type,item){
 }
 function renderTrashSection(type){
   const trash=loadTrash(type);
+  // Update the trash button in the logs bar
+  const btn=document.getElementById('logs-trash-btn');
+  const cnt=document.getElementById('logs-trash-count');
+  if(btn){btn.style.display=trash.length?'flex':'none';}
+  if(cnt) cnt.textContent=trash.length||'';
   if(!trash.length) return '';
   const rows=trash.map(t=>dbRow([
     `<span style="color:var(--text-secondary)">${_trashSummary(type,t.item)}</span>`,
@@ -3686,8 +3693,12 @@ function renderTrashSection(type){
     `<button onclick="restoreFromTrash('${t.id}','${type}')" style="display:inline-flex;align-items:center;gap:4px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);color:#60a5fa;border-radius:var(--r-xs);cursor:pointer;font-size:10px;font-weight:600;padding:2px 8px;font-family:'Outfit',sans-serif">↩ Restore</button>`,
     `<button onclick="deleteForever('${t.id}')" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:3px 7px;border-radius:3px" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete permanently">✕</button>`
   ]));
-  return `<div style="margin-top:28px;padding-top:16px;border-top:1px solid var(--border)"><span class="db-section-label">🗑️ Trash</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px">${trash.length} item${trash.length!==1?'s':''} · permanently delete or restore</span></div>`
+  return `<div id="logs-trash-section" style="margin-top:28px;padding-top:16px;border-top:1px solid var(--border)"><span class="db-section-label">🗑️ Trash</span><span style="font-size:10px;color:var(--text-muted);margin-left:8px">${trash.length} item${trash.length!==1?'s':''} · permanently delete or restore</span></div>`
     +dbTable(['Item','Deleted','',''],rows);
+}
+function scrollToTrash(){
+  const el=document.getElementById('logs-trash-section');
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function restoreFromTrash(trashId,type){
   const trash=JSON.parse(localStorage.getItem(_TRASH_KEY)||'[]');
