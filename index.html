@@ -932,14 +932,23 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
     <div class="ph-left">
       <div class="ph-eyebrow" style="color:var(--t-selfdev)">Growth</div>
       <div class="ph-title" style="color:var(--t-selfdev)">Growth</div>
-      <div class="ph-sub">Everything you're learning — grouped by skill.</div>
+      <div class="ph-sub" id="sd-sub">Knowledge, quotes, and vocabulary.</div>
     </div>
     <div class="ph-actions">
-      <button class="btn btn-primary" style="background:var(--t-selfdev);color:#000" onclick="openModal('knowledge')">+ Knowledge</button>
+      <button class="btn btn-ghost" onclick="sdExport()">📤 Export</button>
+      <button class="btn btn-ghost" onclick="sdImport()">📥 Import</button>
+      <button class="btn btn-primary" id="sd-add-btn" style="background:var(--t-selfdev);color:#000" onclick="openModal('knowledge')">+ Knowledge</button>
       <button class="btn btn-ghost" onclick="openLogs('selfdev')">📋 Logs</button>
     </div>
   </div>
-  <div id="knowledgeList"><div class="empty"><span class="empty-icon">📚</span><span class="empty-text">No knowledge logged yet. Add your first entry.</span></div></div>
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px">
+    <button id="sdtab-knowledge" onclick="switchSdTab('knowledge')" style="padding:8px 18px;border:none;border-bottom:2px solid var(--t-selfdev);background:transparent;color:var(--t-selfdev);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;transition:all .15s">📚 Knowledge</button>
+    <button id="sdtab-quotes" onclick="switchSdTab('quotes')" style="padding:8px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all .15s">💬 Quotes</button>
+    <button id="sdtab-vocab" onclick="switchSdTab('vocab')" style="padding:8px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all .15s">📖 Vocabulary</button>
+  </div>
+  <div id="sd-knowledge"><div id="knowledgeList"><div class="empty"><span class="empty-icon">📚</span><span class="empty-text">No knowledge logged yet.</span></div></div></div>
+  <div id="sd-quotes" style="display:none"><div id="quotesList"><div class="empty"><span class="empty-icon">💬</span><span class="empty-text">No quotes yet.</span></div></div></div>
+  <div id="sd-vocab" style="display:none"><div id="vocabList"><div class="empty"><span class="empty-icon">📖</span><span class="empty-text">No vocabulary yet.</span></div></div></div>
 </div>
 
 <!-- FITNESS -->
@@ -1272,7 +1281,7 @@ function fmtDate(d){if(!d)return'';const dt=new Date(d+'T12:00:00');return dt.to
 function fmtDateShort(d){if(!d)return'';const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
 
 // ── Keys ──────────────────────────────────────────────
-const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes',directory:'ahq_directory',mediaMemos:'ahq_media_memos',noteCats:'ahq_note_cats'};
+const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes',directory:'ahq_directory',mediaMemos:'ahq_media_memos',noteCats:'ahq_note_cats',quotes:'ahq_quotes',vocab:'ahq_vocab'};
 
 function migrateKnowledge(){
   if(localStorage.getItem('ahq_km_done')) return;
@@ -1318,7 +1327,7 @@ const MOB_BTN = {
   meetings: {label:'+ Meeting',  color:'var(--t-meetings)',  fn:"openModal('meeting')"},
   habits:   {label:'+ Habit',    color:'var(--t-habits)',    fn:"openModal('habit')"},
   goals:    {label:'+ Goal',     color:'var(--t-goals)',     fn:"openModal('goal')"},
-  selfdev:  {label:'+ Knowledge',color:'var(--t-selfdev)',   fn:"openModal('knowledge')"},
+  selfdev:  {label:'+ Add',      color:'var(--t-selfdev)',   fn:"sdAdd()"},
   fitness:  {label:'+ Workout',  color:'var(--t-fitness)',   fn:"openModal('workout')"},
   directory:{label:'+ Contact',  color:'var(--t-directory)', fn:"openModal('contact')"},
 };
@@ -2178,6 +2187,8 @@ const TYPE_ICONS  = {'Book':'📖','Course':'🎓','Video':'🎥','Podcast':'�
 const STATUS_MAP  = {active:'In Progress',reading:'In Progress',todo:'To Start',done:'Completed'};
 
 function renderSelfDev(){
+  if(_sdTab==='quotes'){renderQuotes();return;}
+  if(_sdTab==='vocab'){renderVocab();return;}
   migrateKnowledge();
   // One-time: stamp any entry missing a date
   if(!localStorage.getItem('ahq_km_dates')){
@@ -2244,6 +2255,151 @@ function deleteKnowledge(id){
   save(K.knowledge,_kk.filter(k=>k.id!==id));
   renderSelfDev();
   if(_logsTab==='selfdev') renderCurrentLogs('');
+}
+
+// ── Growth tab switching ───────────────────────────────
+let _sdTab='knowledge';
+function switchSdTab(tab){
+  _sdTab=tab;
+  ['knowledge','quotes','vocab'].forEach(t=>{
+    const panel=document.getElementById('sd-'+t);
+    if(panel) panel.style.display=t===tab?'':'none';
+    const btn=document.getElementById('sdtab-'+t);
+    if(btn){
+      btn.style.borderBottom=t===tab?'2px solid var(--t-selfdev)':'2px solid transparent';
+      btn.style.color=t===tab?'var(--t-selfdev)':'var(--text-muted)';
+      btn.style.fontWeight=t===tab?'600':'500';
+    }
+  });
+  const addBtn=document.getElementById('sd-add-btn');
+  if(addBtn){
+    const cfg={knowledge:'+ Knowledge',quotes:'+ Quote',vocab:'+ Word'};
+    addBtn.textContent=cfg[tab]||'+ Add';
+  }
+  if(tab==='knowledge') renderSelfDev();
+  else if(tab==='quotes') renderQuotes();
+  else renderVocab();
+}
+function sdAdd(){
+  const m={knowledge:'knowledge',quotes:'quote',vocab:'vocab'};
+  openModal(m[_sdTab]||'knowledge');
+}
+
+// ── Quotes ────────────────────────────────────────────
+const QUOTE_CATS=['Mindset','Business','Leadership','Philosophy','Motivation','Life','Science','Spirituality','Other'];
+let _editingQuoteId=null;
+function renderQuotes(){
+  const quotes=load(K.quotes);
+  const el=$('quotesList');if(!el)return;
+  if(!quotes.length){el.innerHTML='<div class="empty"><span class="empty-icon">💬</span><span class="empty-text">No quotes yet. Add your first.</span></div>';return;}
+  el.innerHTML=[...quotes].sort((a,b)=>b.date.localeCompare(a.date)).map(q=>`
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-body">
+        <div style="font-size:15px;line-height:1.75;color:var(--text-primary);font-style:italic;margin-bottom:10px">"${esc(q.text)}"</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${q.author?`<span style="font-weight:700;color:var(--t-selfdev)">— ${esc(q.author)}</span>`:''}
+          ${q.source?`<span style="font-size:11px;color:var(--text-muted)">· ${esc(q.source)}</span>`:''}
+          ${q.category?`<span class="lbl lbl-c" style="margin-left:4px">${esc(q.category)}</span>`:''}
+          <span style="margin-left:auto;font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${fmtDateShort(q.date)}</span>
+          <button class="delete-btn" style="color:var(--text-muted)" onclick="editQuote('${q.id}')">✏️</button>
+          <button class="delete-btn" onclick="deleteQuote('${q.id}')">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function editQuote(id){_editingQuoteId=id;openModal('quote');}
+function deleteQuote(id){
+  const qq=load(K.quotes);const qi=qq.find(q=>q.id===id);if(qi)trashItem('quotes',qi);
+  save(K.quotes,qq.filter(q=>q.id!==id));renderQuotes();
+}
+
+// ── Vocabulary ────────────────────────────────────────
+const VOCAB_CATS=['English','Spanish','French','Portuguese','Technical','Business','Medical','Legal','General'];
+let _editingVocabId=null;
+function renderVocab(){
+  const items=load(K.vocab);
+  const el=$('vocabList');if(!el)return;
+  if(!items.length){el.innerHTML='<div class="empty"><span class="empty-icon">📖</span><span class="empty-text">No vocabulary yet. Add your first word.</span></div>';return;}
+  el.innerHTML=[...items].sort((a,b)=>(a.word||'').localeCompare(b.word||'')).map(v=>`
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:20px;font-weight:800;color:var(--t-selfdev);margin-bottom:4px;font-family:'Outfit',sans-serif">${esc(v.word)}</div>
+            <div style="font-size:13px;color:var(--text-primary);margin-bottom:6px;line-height:1.5">${esc(v.definition)}</div>
+            ${v.example?`<div style="font-size:12px;color:var(--text-muted);font-style:italic">"${esc(v.example)}"</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+            ${v.category?`<span class="lbl lbl-c">${esc(v.category)}</span>`:''}
+            <span style="font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${fmtDateShort(v.date)}</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:4px;margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <button class="delete-btn" style="color:var(--text-muted)" onclick="editVocab('${v.id}')">✏️</button>
+          <button class="delete-btn" onclick="deleteVocab('${v.id}')">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function editVocab(id){_editingVocabId=id;openModal('vocab');}
+function deleteVocab(id){
+  const vv=load(K.vocab);const vi=vv.find(v=>v.id===id);if(vi)trashItem('vocab',vi);
+  save(K.vocab,vv.filter(v=>v.id!==id));renderVocab();
+}
+
+// ── Growth Import / Export ─────────────────────────────
+function sdExport(){
+  const csv=(headers,rows)=>`${headers.join(',')}\n${rows.map(r=>headers.map((_,i)=>'"'+(r[i]||'').toString().replace(/"/g,'""')+'"').join(',')).join('\n')}`;
+  let content,filename;
+  if(_sdTab==='quotes'){
+    const items=load(K.quotes);
+    content=csv(['text','author','source','category','date'],items.map(q=>[q.text,q.author,q.source,q.category,q.date]));
+    filename='quotes.csv';
+  } else if(_sdTab==='vocab'){
+    const items=load(K.vocab);
+    content=csv(['word','definition','example','category','date'],items.map(v=>[v.word,v.definition,v.example,v.category,v.date]));
+    filename='vocabulary.csv';
+  } else {
+    const items=load(K.knowledge);
+    content=csv(['title','type','skill','source','link','status','progress','notes','date'],items.map(i=>[i.title,i.type,i.skill,i.source,i.link,i.status,i.progress,i.notes,i.date]));
+    filename='knowledge.csv';
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/csv'}));a.download=filename;a.click();
+  showToast(`📤 Exported ${filename}`,'var(--green)');
+}
+function sdImport(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.csv';
+  inp.onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();r.onload=ev=>_sdParseCSV(ev.target.result);r.readAsText(f);
+  };
+  inp.click();
+}
+function _sdParseCSV(text){
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){showToast('No data rows','var(--amber)');return;}
+  const parseRow=row=>{const cells=[];let cur='',inQ=false;for(const ch of row){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){cells.push(cur.trim());cur='';}else cur+=ch;}cells.push(cur.trim());return cells.map(c=>c.replace(/^["']|["']$/g,'').replace(/""/g,'"'));};
+  const headers=parseRow(lines[0]).map(h=>h.toLowerCase().replace(/^﻿/,'').trim());
+  const rows=lines.slice(1);
+  const get=(row,key)=>{const i=headers.findIndex(h=>h===key||h.includes(key));return i>=0?(row[i]||'').trim():'';};
+  let count=0;
+  // Detect type by headers
+  const isQuote=headers.some(h=>h==='text'||h==='quote');
+  const isVocab=headers.some(h=>h==='word'||h==='definition');
+  if(isQuote){
+    const items=load(K.quotes);
+    rows.forEach(line=>{const row=parseRow(line);if(!row[0])return;items.push({id:uid(),text:get(row,'text')||get(row,'quote'),author:get(row,'author'),source:get(row,'source'),category:get(row,'category')||get(row,'cat')||'Other',date:_normDate(get(row,'date'))});count++;});
+    save(K.quotes,items);if(_sdTab==='quotes')renderQuotes();
+  } else if(isVocab){
+    const items=load(K.vocab);
+    rows.forEach(line=>{const row=parseRow(line);if(!row[0])return;items.push({id:uid(),word:get(row,'word'),definition:get(row,'definition')||get(row,'def'),example:get(row,'example'),category:get(row,'category')||get(row,'cat')||'General',date:_normDate(get(row,'date'))});count++;});
+    save(K.vocab,items);if(_sdTab==='vocab')renderVocab();
+  } else {
+    const items=load(K.knowledge);
+    rows.forEach(line=>{const row=parseRow(line);if(!row[0])return;items.push({id:uid(),title:get(row,'title'),type:get(row,'type')||'Book',skill:get(row,'skill')||'Personal Development',source:get(row,'source'),link:get(row,'link'),status:get(row,'status')||'todo',progress:parseInt(get(row,'progress'))||0,notes:get(row,'notes')||get(row,'note'),date:_normDate(get(row,'date'))});count++;});
+    save(K.knowledge,items);if(_sdTab==='knowledge')renderSelfDev();
+  }
+  showToast(`✅ Imported ${count} item${count!==1?'s':''}`,count?'var(--green)':'var(--amber)');
 }
 let _editingKnowledgeId=null;
 function editKnowledge(id){
@@ -3206,6 +3362,45 @@ const MODAL_FORMS = {
       save(K.metrics,metrics);closeModal();renderFitness();
       if(_logsTab==='fitness')renderCurrentLogs('');
     }},
+  quote:{title:()=>_editingQuoteId?'Edit Quote':'Add Quote',html:()=>{
+    const q=_editingQuoteId?load(K.quotes).find(x=>x.id===_editingQuoteId):null;
+    return `
+    <div class="field"><label>Quote *</label><textarea class="textarea" id="m-q-text" placeholder="The quote…" style="min-height:80px">${esc(q?.text||'')}</textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Author</label><input class="input" id="m-q-author" placeholder="Who said it?" value="${esc(q?.author||'')}"></div>
+      <div class="field"><label>Category</label><select class="select" id="m-q-cat">${QUOTE_CATS.map(c=>`<option${q?.category===c?' selected':''}>${c}</option>`).join('')}</select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Source</label><input class="input" id="m-q-source" placeholder="Book, speech, interview…" value="${esc(q?.source||'')}"></div>
+      <div class="field"><label>Date</label><input class="input" id="m-q-date" type="date" value="${q?.date||today()}"></div>
+    </div>`;
+  },save:()=>{
+    const text=$('m-q-text').value.trim();if(!text)return alert('Quote text required');
+    const entry={text,author:$('m-q-author').value.trim(),source:$('m-q-source').value.trim(),category:$('m-q-cat').value,date:$('m-q-date').value||today()};
+    const quotes=load(K.quotes);
+    if(_editingQuoteId){const i=quotes.findIndex(x=>x.id===_editingQuoteId);if(i>=0)quotes[i]={...quotes[i],...entry};_editingQuoteId=null;}
+    else quotes.push({id:uid(),...entry});
+    save(K.quotes,quotes);closeModal();renderQuotes();
+  }},
+  vocab:{title:()=>_editingVocabId?'Edit Word':'Add Word',html:()=>{
+    const v=_editingVocabId?load(K.vocab).find(x=>x.id===_editingVocabId):null;
+    return `
+    <div class="field"><label>Word *</label><input class="input" id="m-v-word" placeholder="Word or phrase" value="${esc(v?.word||'')}"></div>
+    <div class="field"><label>Definition *</label><textarea class="textarea" id="m-v-def" placeholder="What does it mean?" style="min-height:70px">${esc(v?.definition||'')}</textarea></div>
+    <div class="field"><label>Example sentence</label><input class="input" id="m-v-example" placeholder="Use it in a sentence…" value="${esc(v?.example||'')}"></div>
+    <div class="field-row">
+      <div class="field"><label>Category / Language</label><select class="select" id="m-v-cat">${VOCAB_CATS.map(c=>`<option${v?.category===c?' selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Date</label><input class="input" id="m-v-date" type="date" value="${v?.date||today()}"></div>
+    </div>`;
+  },save:()=>{
+    const word=$('m-v-word').value.trim();if(!word)return alert('Word required');
+    const def=$('m-v-def').value.trim();if(!def)return alert('Definition required');
+    const entry={word,definition:def,example:$('m-v-example').value.trim(),category:$('m-v-cat').value,date:$('m-v-date').value||today()};
+    const items=load(K.vocab);
+    if(_editingVocabId){const i=items.findIndex(x=>x.id===_editingVocabId);if(i>=0)items[i]={...items[i],...entry};_editingVocabId=null;}
+    else items.push({id:uid(),...entry});
+    save(K.vocab,items);closeModal();renderVocab();
+  }},
   contact:{title:'New Contact',html:()=>{
     const _defaults=['Client','Lead','Partner','Investor','Mentor','Colleague','Friend','Vendor','Referral','Other'];
     const _imported=[...new Set(load(K.directory).map(c=>c.category).filter(Boolean))];
@@ -3296,7 +3491,7 @@ function openModal(type,defaultTaskType){
   $('modalOverlay').classList.add('open');
   setTimeout(()=>{const first=$('modalBody').querySelector('input:not([type=date]),textarea');if(first)first.focus();},120);
 }
-function closeModal(){$('modalOverlay').classList.remove('open');currentSaveFn=null;_editingTaskId=null;_editingMeetingId=null;_editingGoalId=null;_editingContactId=null;_editingNoteId=null;_editingKnowledgeId=null;_editingWorkoutId=null;_editingMetricId=null;_mtgSelectedContacts=[];resetEim();}
+function closeModal(){$('modalOverlay').classList.remove('open');currentSaveFn=null;_editingTaskId=null;_editingMeetingId=null;_editingGoalId=null;_editingContactId=null;_editingNoteId=null;_editingKnowledgeId=null;_editingWorkoutId=null;_editingMetricId=null;_editingQuoteId=null;_editingVocabId=null;_mtgSelectedContacts=[];resetEim();}
 function closeModalOutside(e){if(e.target===$('modalOverlay'))closeModal();}
 
 // ── ICS EXPORT (kept for Meetings tab) ───────────────
@@ -3799,6 +3994,8 @@ function _trashSummary(type,item){
   if(type==='workouts') return `${esc(item.type||'')}${item.name?' — '+esc(item.name):''} · ${item.date||''}`;
   if(type==='metrics') return `${item.date||''} · ${toLbs(item.weight||0)} lbs`;
   if(type==='journal') return `${item.date||''} · ${esc((item.dump||item.grat||item.intent||'').slice(0,60))}`;
+  if(type==='quotes') return `"${esc((item.text||'').slice(0,60))}"${item.author?' — '+esc(item.author):''}`;
+  if(type==='vocab') return esc(item.word||'');
   if(type==='notes') return esc((item.text||'').slice(0,80));
   if(type==='directory') return esc(item.name||'Untitled');
   return '—';
@@ -3857,7 +4054,7 @@ function emptyTrash(){
 function restoreFromTrash(trashId,type){
   const trash=JSON.parse(localStorage.getItem(_TRASH_KEY)||'[]');
   const entry=trash.find(t=>t.id===trashId);if(!entry)return;
-  const colMap={tasks:K.tasks,meetings:K.meetings,habits:K.habits,goals:K.goals,selfdev:K.knowledge,workouts:K.workouts,metrics:K.metrics,notes:K.notes,directory:K.directory,journal:K.journal};
+  const colMap={tasks:K.tasks,meetings:K.meetings,habits:K.habits,goals:K.goals,selfdev:K.knowledge,workouts:K.workouts,metrics:K.metrics,notes:K.notes,directory:K.directory,journal:K.journal,quotes:K.quotes,vocab:K.vocab};
   const key=colMap[type];
   if(key){const items=load(key);items.push(entry.item);save(key,items);}
   localStorage.setItem(_TRASH_KEY,JSON.stringify(trash.filter(t=>t.id!==trashId)));
@@ -3865,7 +4062,7 @@ function restoreFromTrash(trashId,type){
   const title=document.getElementById('logs-title');
   if(title&&title.textContent.startsWith('🗑️')) openTrashView();
   else renderCurrentLogs((document.getElementById('logs-search')||{value:''}).value);
-  const rMap={tasks:renderTasks,meetings:renderMeetings,habits:renderHabits,goals:renderGoals,selfdev:renderSelfDev,workouts:renderFitness,metrics:renderFitness,notes:renderNotes,directory:renderDirectory,journal:renderJournal};
+  const rMap={tasks:renderTasks,meetings:renderMeetings,habits:renderHabits,goals:renderGoals,selfdev:renderSelfDev,workouts:renderFitness,metrics:renderFitness,notes:renderNotes,directory:renderDirectory,journal:renderJournal,quotes:renderQuotes,vocab:renderVocab};
   if(rMap[type])rMap[type]();
   showToast('↩ Restored','var(--green)');
 }
