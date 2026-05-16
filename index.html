@@ -3164,7 +3164,7 @@ const MODAL_FORMS = {
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="m-wo-focus-chips">
         ${focusChips.map(f=>`<button type="button" onclick="selectWorkoutFocus(this,'${f}')" class="${presetFocus===f?'focus-active':''}" style="padding:5px 11px;border-radius:99px;border:1px solid ${presetFocus===f?'var(--t-fitness)':'var(--border-md)'};background:${presetFocus===f?'rgba(74,222,128,.15)':'transparent'};color:${presetFocus===f?'var(--t-fitness)':'var(--text-muted)'};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;transition:all .15s" onmouseover="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-strong)'" onmouseout="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-md)'">${f}</button>`).join('')}
       </div>
-      <input class="input" id="m-wo-name" placeholder="Or type a custom focus…" oninput="clearWorkoutChips()" style="font-size:12px" value="${esc(presetFocus?'':w?.name||'')}">
+      <input class="input" id="m-wo-name" placeholder="Or type a custom focus…" oninput="clearWorkoutChips()" style="font-size:12px" value="${esc(w?.name||'')}">
     </div>
     <div class="field"><label>Notes</label><textarea class="textarea" id="m-wo-notes" placeholder="How did it go? PRs?">${esc(w?.notes||'')}</textarea></div>`;
   },
