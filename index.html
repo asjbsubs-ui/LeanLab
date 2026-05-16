@@ -951,6 +951,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
       <div class="ph-sub">Track workouts, weight, and physical progress.</div>
     </div>
     <div class="ph-actions">
+      <button class="btn btn-ghost" onclick="openFitnessImport()">📥 Import</button>
       <button class="btn btn-ghost" onclick="openModal('metric')">Log Weight</button>
       <button class="btn btn-primary" style="background:var(--t-fitness);color:#000" onclick="openModal('workout')">+ Workout</button>
       <button class="btn btn-ghost" onclick="openLogs('fitness')">📋 Logs</button>
@@ -2282,6 +2283,83 @@ function deleteWorkout(id){const _ww=load(K.workouts);const _wi=_ww.find(w=>w.id
 let _editingWorkoutId=null;
 function editWorkout(id){_editingWorkoutId=id;openModal('workout');}
 function deleteMetric(id){const _met=load(K.metrics);const _meti=_met.find(m=>m.id===id);if(_meti)trashItem('metrics',_meti);save(K.metrics,_met.filter(m=>m.id!==id));renderFitness();if(_logsTab==='fitness')renderCurrentLogs('');}
+
+function openFitnessImport(){
+  $('modalTitle').textContent='Import Fitness Data';
+  $('modalBody').innerHTML=`
+    <div class="field"><label>File <span style="font-weight:400;color:var(--text-muted);font-size:10px">(CSV or JSON)</span></label>
+      <input type="file" id="m-fit-file" accept=".csv,.json" class="input" style="padding:6px;cursor:pointer">
+    </div>
+    <div style="margin-top:12px;padding:10px 12px;border-radius:var(--r-sm);background:var(--bg-input);border:1px solid var(--border);font-size:11px;color:var(--text-muted);line-height:1.8">
+      <strong style="color:var(--text-secondary)">Workout CSV</strong> — columns: <code>date, type, name, notes</code><br>
+      <em style="font-size:10px">type = Weights / Running / Sports / Other</em><br>
+      <strong style="color:var(--text-secondary)">Metrics CSV</strong> — columns: <code>date, weight_lbs, notes</code><br>
+      <strong style="color:var(--text-secondary)">JSON</strong> — array of objects with the same fields
+    </div>`;
+  $('modalFoot').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" style="background:var(--t-fitness);color:#000" onclick="runFitnessImport()">Import</button>`;
+  currentSaveFn=runFitnessImport;
+  $('modalOverlay').classList.add('open');
+}
+function runFitnessImport(){
+  const fi=document.getElementById('m-fit-file');
+  if(!fi||!fi.files[0]){alert('Select a file first');return;}
+  const file=fi.files[0];
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    closeModal();
+    if(file.name.toLowerCase().endsWith('.json')) _parseFitnessJSON(ev.target.result);
+    else _parseFitnessCSV(ev.target.result);
+  };
+  reader.readAsText(file);
+}
+function _parseFitnessCSV(text){
+  const lines=text.trim().split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){showToast('No data rows found','var(--amber)');return;}
+  const parseRow=row=>{const cells=[];let cur='',inQ=false;for(const ch of row){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){cells.push(cur.trim());cur='';}else cur+=ch;}cells.push(cur.trim());return cells;};
+  const headers=parseRow(lines[0]).map(h=>h.toLowerCase().trim());
+  const isMetric=headers.some(h=>h.includes('weight'));
+  const get=(row,key)=>{const i=headers.findIndex(h=>h.includes(key));return i>=0?(row[i]||'').trim():'';};
+  const workouts=load(K.workouts),metrics=load(K.metrics);
+  let wCount=0,mCount=0;
+  lines.slice(1).forEach(line=>{
+    const row=parseRow(line);if(!row[0])return;
+    const date=get(row,'date')||today();
+    if(isMetric){
+      const lbs=parseFloat(get(row,'weight'));if(isNaN(lbs)||lbs<=0)return;
+      metrics.push({id:uid(),date,weight:Math.round(lbs/2.20462*100)/100,notes:get(row,'note')});mCount++;
+    } else {
+      workouts.push({id:uid(),date,type:get(row,'type')||'Other',name:get(row,'name'),notes:get(row,'note')});wCount++;
+    }
+  });
+  if(wCount)save(K.workouts,workouts);if(mCount)save(K.metrics,metrics);
+  _finishFitnessImport(wCount,mCount);
+}
+function _parseFitnessJSON(text){
+  let data;try{data=JSON.parse(text);}catch(e){showToast('Invalid JSON','var(--red)');return;}
+  if(!Array.isArray(data)){showToast('JSON must be an array of objects','var(--red)');return;}
+  const workouts=load(K.workouts),metrics=load(K.metrics);
+  let wCount=0,mCount=0;
+  data.forEach(item=>{
+    if(!item||typeof item!=='object')return;
+    const date=item.date||today();
+    if(item.weight_lbs!==undefined||item.weight!==undefined){
+      const kg=item.weight_lbs?Math.round(item.weight_lbs/2.20462*100)/100:item.weight;
+      metrics.push({id:uid(),date,weight:kg,notes:item.notes||''});mCount++;
+    } else if(item.type!==undefined||item.name!==undefined){
+      workouts.push({id:uid(),date,type:item.type||'Other',name:item.name||'',notes:item.notes||''});wCount++;
+    }
+  });
+  if(wCount)save(K.workouts,workouts);if(mCount)save(K.metrics,metrics);
+  _finishFitnessImport(wCount,mCount);
+}
+function _finishFitnessImport(wCount,mCount){
+  renderFitness();if(_logsTab==='fitness')renderCurrentLogs('');
+  const parts=[];
+  if(wCount)parts.push(`${wCount} workout${wCount!==1?'s':''}`);
+  if(mCount)parts.push(`${mCount} weigh-in${mCount!==1?'s':''}`);
+  showToast(parts.length?`✅ Imported ${parts.join(' + ')}`:'No valid rows found',parts.length?'var(--green)':'var(--amber)');
+}
+
 let _editingMetricId=null;
 function editMetric(id){_editingMetricId=id;openModal('metric');}
 
