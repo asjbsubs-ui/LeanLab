@@ -2352,7 +2352,15 @@ function clearAllVocab(){
   vv.forEach(v=>trashItem('vocab',v));
   save(K.vocab,[]);renderVocab();showToast('Vocabulary cleared','var(--red)');
 }
-let _vocabPreview=null;
+let _vocabPreview=null,_vocabDefs=[],_vocabDefIdx=0;
+function _renderVocabPreview(){
+  const canonical=_vocabPreview.word;
+  const entry=_vocabDefs[_vocabDefIdx];
+  const total=_vocabDefs.length;
+  const counter=total>1?`<span style="font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace">${_vocabDefIdx+1} / ${total}</span>`:'';
+  const nextBtn=total>1?`<button class="btn btn-ghost" onclick="nextVocabDef()">Next meaning →</button>`:'';
+  $('vocab-preview').innerHTML=`<div class="card" style="border-color:var(--t-selfdev);margin-bottom:0"><div class="card-body" style="padding:14px 16px"><div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px"><div style="font-size:20px;font-weight:800;color:var(--t-selfdev)">${esc(canonical)}</div><span style="font-size:10px;color:var(--text-muted);font-style:italic">${esc(entry.pos)}</span></div><div style="font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:14px">${esc(entry.def)}</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${counter}<button class="btn btn-primary" style="background:var(--t-selfdev);color:#000" onclick="saveVocabPreview()">Save</button>${nextBtn}<button class="btn btn-ghost" onclick="discardVocabPreview()">Discard</button></div></div></div>`;
+}
 async function lookupWord(){
   const inp=$('vocab-word-input');
   const word=(inp.value||'').trim();if(!word)return;
@@ -2364,24 +2372,33 @@ async function lookupWord(){
     if(!res.ok)throw new Error();
     const data=await res.json();
     const canonical=data[0]?.word||word;
-    const def=data[0]?.meanings[0]?.definitions[0]?.definition||'';
-    _vocabPreview={word:canonical,definition:def};
-    preview.innerHTML=`<div class="card" style="border-color:var(--t-selfdev);margin-bottom:0"><div class="card-body" style="padding:14px 16px"><div style="font-size:20px;font-weight:800;color:var(--t-selfdev);margin-bottom:6px">${esc(canonical)}</div><div style="font-size:13px;color:var(--text-primary);line-height:1.6;margin-bottom:14px">${esc(def)}</div><div style="display:flex;gap:8px"><button class="btn btn-primary" style="background:var(--t-selfdev);color:#000" onclick="saveVocabPreview()">Save</button><button class="btn btn-ghost" onclick="discardVocabPreview()">Discard</button></div></div></div>`;
+    _vocabDefs=[];
+    (data[0]?.meanings||[]).forEach(m=>m.definitions.forEach(d=>{if(d.definition)_vocabDefs.push({pos:m.partOfSpeech||'',def:d.definition});}));
+    if(!_vocabDefs.length)throw new Error();
+    _vocabDefIdx=0;
+    _vocabPreview={word:canonical,definition:_vocabDefs[0].def};
+    _renderVocabPreview();
   }catch(e){
-    _vocabPreview=null;
+    _vocabPreview=null;_vocabDefs=[];
     preview.innerHTML='<div style="color:var(--red);font-size:13px;padding:8px 0">Word not found. Check the spelling and try again.</div>';
   }
+}
+function nextVocabDef(){
+  if(!_vocabDefs.length)return;
+  _vocabDefIdx=(_vocabDefIdx+1)%_vocabDefs.length;
+  _vocabPreview.definition=_vocabDefs[_vocabDefIdx].def;
+  _renderVocabPreview();
 }
 function saveVocabPreview(){
   if(!_vocabPreview)return;
   const items=load(K.vocab);
   items.push({id:uid(),word:_vocabPreview.word,definition:_vocabPreview.definition,date:today()});
-  save(K.vocab,items);_vocabPreview=null;
+  save(K.vocab,items);_vocabPreview=null;_vocabDefs=[];
   $('vocab-preview').style.display='none';$('vocab-word-input').value='';
   renderVocab();showToast('Word saved','var(--t-selfdev)');
 }
 function discardVocabPreview(){
-  _vocabPreview=null;$('vocab-preview').style.display='none';$('vocab-word-input').value='';
+  _vocabPreview=null;_vocabDefs=[];$('vocab-preview').style.display='none';$('vocab-word-input').value='';
 }
 
 // ── Growth Import / Export ─────────────────────────────
