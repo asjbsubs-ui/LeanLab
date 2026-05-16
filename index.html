@@ -1922,7 +1922,7 @@ function renderJournal(){
   if(!entries.length){el.innerHTML='<div class="empty"><span class="empty-icon">📖</span><span class="empty-text">No entries yet.</span></div>';return;}
   const moods=['','😩','😞','😐','😊','🔥'];
   const t=today();
-  el.innerHTML=entries.map(e=>`<div class="journal-entry" onclick="loadJournalEntry('${e.id}')"><div class="je-date">${e.date===t?'Today':fmtDate(e.date)}<button onclick="event.stopPropagation();deleteJournalEntry('${e.id}')" style="float:right;background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;padding:0 4px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete entry">✕</button></div><div class="je-preview"><span class="je-mood">${moods[e.mood]||''}</span>${esc((e.dump||e.grat||e.intent||'').slice(0,80))}…</div></div>`).join('');
+  el.innerHTML=entries.map(e=>`<div class="journal-entry" onclick="viewJournalEntry('${e.id}')"><div class="je-date">${e.date===t?'Today':fmtDate(e.date)}<button onclick="event.stopPropagation();deleteJournalEntry('${e.id}')" style="float:right;background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:12px;padding:0 4px;line-height:1" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-muted)'" title="Delete entry">✕</button></div><div class="je-preview"><span class="je-mood">${moods[e.mood]||''}</span>${esc((e.dump||e.grat||e.intent||'').slice(0,80))}…</div></div>`).join('');
 }
 function deleteJournalEntry(id){
   const entries=load(K.journal);
@@ -1942,6 +1942,21 @@ function loadJournalEntry(id){
   $('journalIntention').value=e.intent||'';
   document.querySelectorAll('.mood-btn').forEach(b=>{b.classList.remove('selected');if(parseInt(b.dataset.mood)===e.mood)b.classList.add('selected');});
   selectedMood=e.mood;
+}
+
+function viewJournalEntry(id){
+  const e=load(K.journal).find(x=>x.id===id);if(!e)return;
+  const moods=['','😩','😞','😐','😊','🔥'];
+  const section=(label,text)=>text?`<div style="margin-bottom:16px"><div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">${label}</div><div style="white-space:pre-wrap;line-height:1.75;font-size:14px;color:var(--text-primary)">${esc(text)}</div></div>`:'';
+  $('modalTitle').textContent=fmtDate(e.date);
+  $('modalBody').innerHTML=`
+    ${e.mood?`<div style="font-size:28px;margin-bottom:14px">${moods[e.mood]||''}</div>`:''}
+    ${section('Brain Dump',e.dump)}
+    ${section('Gratitude',e.grat)}
+    ${section('Intention',e.intent)}
+  `;
+  $('modalFoot').innerHTML=`<button class="btn btn-ghost" onclick="closeModal()">Close</button>`;
+  $('modalOverlay').classList.add('open');
 }
 
 // ── JOURNAL TAB SWITCH ────────────────────────────────
