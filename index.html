@@ -5142,7 +5142,9 @@ const OBS_KEY_MAP = {
   [K.workouts]:'Fitness.md', [K.metrics]:'Fitness.md',
   [K.reviews]:'Weekly Reviews.md',
   [K.notes]:'Notes.md',
-  [K.directory]:'Directory.md'
+  [K.directory]:'Directory.md',
+  [K.quotes]:'Quotes.md',
+  [K.vocab]:'Vocabulary.md'
 };
 const _obsThrottle={};
 
@@ -5230,6 +5232,16 @@ function obsMarkdown(file){
     const reviews=load(K.reviews).sort((a,b)=>b.week.localeCompare(a.week));
     const rows=reviews.map(r=>`## Week of ${r.week}\n**Overall:** ${r.overall}/10 · **Energy:** ${r.energy}/10 · **Focus:** ${r.focus}/10\n${r.wins?'\n**3 Biggest Wins:**\n'+r.wins+'\n':''}${r.losses?'\n**What Held Me Back:**\n'+r.losses+'\n':''}${r.priority?'\n**Next Week Priority:** '+r.priority+'\n':''}`).join('\n---\n');
     return `---\nupdated: ${now}\nsource: LeanHQ\n---\n# 🧭 Weekly Reviews\n\n${rows||'_No reviews_'}\n`;
+  }
+  if(file==='Quotes.md'){
+    const quotes=load(K.quotes).sort((a,b)=>(a.author||'').localeCompare(b.author||''));
+    const rows=quotes.map(q=>`> ${q.text}\n\n— **${q.author||'Unknown'}**${q.source?' · _'+q.source+'_':''}${q.category?' · '+q.category:''}`).join('\n\n---\n\n');
+    return `---\nupdated: ${now}\nsource: LeanHQ\n---\n# 💬 Quotes\n\n${rows||'_No quotes_'}\n`;
+  }
+  if(file==='Vocabulary.md'){
+    const words=load(K.vocab).sort((a,b)=>(a.word||'').localeCompare(b.word||''));
+    const rows=words.map(w=>`### ${w.word}\n${w.definition}`).join('\n\n');
+    return `---\nupdated: ${now}\nsource: LeanHQ\n---\n# 📖 Vocabulary\n\n${rows||'_No words_'}\n`;
   }
   return '';
 }
