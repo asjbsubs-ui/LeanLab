@@ -5233,6 +5233,11 @@ function obsMarkdown(file){
     const rows=reviews.map(r=>`## Week of ${r.week}\n**Overall:** ${r.overall}/10 · **Energy:** ${r.energy}/10 · **Focus:** ${r.focus}/10\n${r.wins?'\n**3 Biggest Wins:**\n'+r.wins+'\n':''}${r.losses?'\n**What Held Me Back:**\n'+r.losses+'\n':''}${r.priority?'\n**Next Week Priority:** '+r.priority+'\n':''}`).join('\n---\n');
     return `---\nupdated: ${now}\nsource: LeanHQ\n---\n# 🧭 Weekly Reviews\n\n${rows||'_No reviews_'}\n`;
   }
+  if(file==='Directory.md'){
+    const contacts=load(K.directory).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    const rows=contacts.map(c=>`### ${c.name}${c.category?' · '+c.category:''}\n${c.company?'**Company:** '+c.company+'\n':''}${c.email?'**Email:** '+c.email+'\n':''}${c.phone?'**Phone:** '+c.phone+'\n':''}${c.linkedIn?'**LinkedIn:** '+c.linkedIn+'\n':''}${c.tags?'**Tags:** '+c.tags+'\n':''}${c.source?'**Source:** '+c.source+'\n':''}${c.notes?'**Notes:** '+c.notes+'\n':''}`).join('\n---\n\n');
+    return `---\nupdated: ${now}\nsource: LeanHQ\n---\n# 👥 Directory\n\n${rows||'_No contacts_'}\n`;
+  }
   if(file==='Quotes.md'){
     const quotes=load(K.quotes).sort((a,b)=>(a.author||'').localeCompare(b.author||''));
     const rows=quotes.map(q=>`> ${q.text}\n\n— **${q.author||'Unknown'}**${q.source?' · _'+q.source+'_':''}${q.category?' · '+q.category:''}`).join('\n\n---\n\n');
