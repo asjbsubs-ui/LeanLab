@@ -1056,20 +1056,11 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
     <div class="card-body">
       <textarea class="textarea" id="note-input" style="min-height:96px;font-size:14px;resize:none;border:none;background:transparent;padding:0;margin-bottom:14px" placeholder="What's on your mind? Type and save… (Cmd+Enter to save)" onkeydown="if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();saveNote();}"></textarea>
       <div style="margin-bottom:10px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:7px">Category</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="note-cat-chips">
-          <button type="button" onclick="selectNoteChip(this,'💡 Business Idea')" class="nchip">💡 Business Idea</button>
-          <button type="button" onclick="selectNoteChip(this,'🎬 Content Idea')" class="nchip">🎬 Content Idea</button>
-          <button type="button" onclick="selectNoteChip(this,'💬 Quote')" class="nchip">💬 Quote</button>
-          <button type="button" onclick="selectNoteChip(this,'📋 Strategy')" class="nchip">📋 Strategy</button>
-          <button type="button" onclick="selectNoteChip(this,'🔗 Resource')" class="nchip">🔗 Resource</button>
-          <button type="button" onclick="selectNoteChip(this,'🧠 Thought')" class="nchip">🧠 Thought</button>
-          <button type="button" onclick="selectNoteChip(this,'🎯 Goal Idea')" class="nchip">🎯 Goal Idea</button>
-          <button type="button" onclick="selectNoteChip(this,'⚡ Quick Thought')" class="nchip">⚡ Quick Thought</button>
-          <button type="button" onclick="selectNoteChip(this,'🛒 Grocery')" class="nchip">🛒 Grocery</button>
-          <button type="button" onclick="selectNoteChip(this,'🐛 Bug')" class="nchip">🐛 Bug</button>
-          <button type="button" onclick="selectNoteChip(this,'💻 App Development')" class="nchip">💻 App Development</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <span style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)">Category</span>
+          <button type="button" id="note-cat-edit-btn" onclick="toggleNoteCatEdit()" style="font-size:10px;padding:2px 9px;border-radius:99px;border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s">✏️ Edit</button>
         </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="note-cat-chips"></div>
         <input class="input" id="note-cat-custom" placeholder="Or type a custom category…" oninput="noteCatCustomInput(this)" style="font-size:12px" autocomplete="off">
       </div>
       <div style="display:flex;gap:10px;align-items:center">
@@ -1279,7 +1270,7 @@ function fmtDate(d){if(!d)return'';const dt=new Date(d+'T12:00:00');return dt.to
 function fmtDateShort(d){if(!d)return'';const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
 
 // ── Keys ──────────────────────────────────────────────
-const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes',directory:'ahq_directory',mediaMemos:'ahq_media_memos'};
+const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes',directory:'ahq_directory',mediaMemos:'ahq_media_memos',noteCats:'ahq_note_cats'};
 
 function migrateKnowledge(){
   if(localStorage.getItem('ahq_km_done')) return;
@@ -1353,7 +1344,7 @@ function switchTab(id, btn){
   // Auto-resync GCal when navigating to Meetings
   if(id==='meetings') gcalAutoSync();
   // Auto-focus note input when navigating to Notes
-  if(id==='notes'){ setTimeout(()=>{ const el=$('note-input'); if(el) el.focus(); },80); mediaMemosSync(); }
+  if(id==='notes'){ renderNoteCatChips(); setTimeout(()=>{ const el=$('note-input'); if(el) el.focus(); },80); mediaMemosSync(); }
 }
 
 // ── Discipline score ───────────────────────────────────
@@ -2448,6 +2439,38 @@ const NOTE_STATUSES=[
   {v:'done',        l:'Done',        col:'var(--green)',       bg:'rgba(74,222,128,.12)'},
   {v:'rejected',    l:'Rejected',    col:'var(--red)',         bg:'rgba(248,113,113,.12)'},
 ];
+
+const _DEFAULT_NOTE_CATS=['💡 Business Idea','🎬 Content Idea','💬 Quote','📋 Strategy','🔗 Resource','🧠 Thought','🎯 Goal Idea','⚡ Quick Thought','🛒 Grocery','🐛 Bug','💻 App Development'];
+function getNoteCats(){const s=localStorage.getItem(K.noteCats);return s?JSON.parse(s):[..._DEFAULT_NOTE_CATS];}
+function saveNoteCats(cats){localStorage.setItem(K.noteCats,JSON.stringify(cats));}
+let _noteCatEditMode=false;
+function toggleNoteCatEdit(){_noteCatEditMode=!_noteCatEditMode;renderNoteCatChips();}
+function renderNoteCatChips(){
+  const cats=getNoteCats();
+  const el=$('note-cat-chips');if(!el)return;
+  const btn=$('note-cat-edit-btn');
+  if(btn){btn.textContent=_noteCatEditMode?'✓ Done':'✏️ Edit';btn.style.color=_noteCatEditMode?'var(--t-selfdev)':'var(--text-muted)';}
+  if(_noteCatEditMode){
+    el.innerHTML=cats.map((cat,i)=>`<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 6px 3px 10px;border-radius:99px;border:1px solid var(--border-md);background:rgba(255,255,255,.04);font-size:12px;font-family:'Outfit',sans-serif;color:var(--text-secondary)">${esc(cat)}<button onclick="removeNoteCat('${encodeURIComponent(cat)}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:11px;padding:1px 3px;line-height:1;border-radius:50%" title="Remove">✕</button></span>`).join('')+`<span style="display:inline-flex;align-items:center;gap:4px"><input id="note-cat-new" class="input" placeholder="New category…" style="height:28px;font-size:12px;padding:0 10px;width:140px" onkeydown="if(event.key==='Enter'){event.preventDefault();addNoteCat();}"><button onclick="addNoteCat()" style="height:28px;padding:0 10px;border-radius:99px;border:1px solid var(--border-md);background:rgba(255,255,255,.06);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:'Outfit',sans-serif">Add</button></span>`;
+  } else {
+    el.innerHTML=cats.map(cat=>`<button type="button" onclick="selectNoteChip(this,'${cat.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" class="nchip${_noteChip===cat?' on':''}">${esc(cat)}</button>`).join('');
+  }
+}
+function removeNoteCat(encoded){
+  const cat=decodeURIComponent(encoded);
+  const cats=getNoteCats().filter(c=>c!==cat);
+  if(_noteChip===cat)_noteChip='';
+  saveNoteCats(cats);
+  renderNoteCatChips();
+}
+function addNoteCat(){
+  const input=$('note-cat-new');if(!input||!input.value.trim())return;
+  const cat=input.value.trim();
+  const cats=getNoteCats();
+  if(!cats.includes(cat)){cats.push(cat);saveNoteCats(cats);}
+  input.value='';
+  renderNoteCatChips();
+}
 
 function selectNoteChip(btn, cat){
   document.querySelectorAll('#note-cat-chips button').forEach(b=>b.classList.remove('on'));
