@@ -1508,6 +1508,7 @@ function taskCard(t){
         ${t.business?`<span class="task-cat" style="background:rgba(74,222,128,.1);color:var(--green);border-radius:99px">🏢 ${esc(t.business)}</span>`:''}
         ${t.dept?`<span class="task-cat" style="background:rgba(96,165,250,.1);color:#60a5fa;border-radius:99px">◈ ${esc(t.dept)}</span>`:''}
         ${t.due?(()=>{const overdue=t.due<today()&&!t.done,isToday=t.due===today()&&!t.done;return `<span class="task-cat" style="${overdue?'background:rgba(248,113,113,.15);color:var(--red);border-color:rgba(248,113,113,.3)':isToday?'background:rgba(251,191,36,.12);color:var(--yellow);border-color:rgba(251,191,36,.3)':''}">📅 ${fmtDateShort(t.due)}</span>`})():''}
+        ${t.recur?`<span class="task-cat" style="background:rgba(74,222,128,.08);color:var(--green);border-radius:99px">🔁 ${t.recur}</span>`:''}
       </div>
     </div>
     <div style="display:flex;gap:4px;flex-shrink:0">
@@ -1540,12 +1541,26 @@ function renderTasks(){
     if(da!==db) return da<db?-1:1;
     return (_p[a.priority]||1)-(_p[b.priority]||1);
   });
-  const work=all.filter(t=>(t.type||'work')==='work');
-  const personal=all.filter(t=>t.type==='personal');
+  const recurring=load(K.tasks).filter(t=>t.recur&&!t.done);
+  const work=all.filter(t=>(t.type||'work')==='work'&&!t.recur);
+  const personal=all.filter(t=>t.type==='personal'&&!t.recur);
   const active=load(K.tasks).filter(t=>!t.done).length;
   $('pill-tasks').textContent=active;
   const emptyMsg='<div style="font-size:12px;color:var(--text-muted);padding:14px 0;text-align:center">No tasks here.</div>';
-  $('taskList').innerHTML=`
+  const recurSection=recurring.length?`
+    <div style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:15px">🔁</span>
+        <span style="font-family:'Orbitron',monospace;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--green)">Recurring</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);margin-left:2px">${recurring.length} active</span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:10px" onclick="openModal('task','work')">+ Add</button>
+      </div>
+      ${recurring.sort((a,b)=>(a.due||'9999')>(b.due||'9999')?1:-1).map(taskCard).join('')}
+    </div>
+    <div style="height:1px;background:var(--border);margin:4px 0 18px;position:relative">
+      <span style="position:absolute;top:50%;left:0;transform:translateY(-50%);font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--bg-card);padding:0 10px;color:var(--text-muted)">One-off</span>
+    </div>`:'';
+  $('taskList').innerHTML=recurSection+`
     <div style="margin-bottom:6px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:15px">💼</span>
@@ -1569,11 +1584,22 @@ function renderTasks(){
     </div>
     ${(()=>{const doneCount=load(K.tasks).filter(t=>t.done).length;return doneCount?`<div style="text-align:center;padding:14px 0 4px"><button onclick="document.getElementById('taskFilter').value='done';renderTasks()" style="background:transparent;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);font-family:'Outfit',sans-serif" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">✓ ${doneCount} completed — view archived</button></div>`:'';})()}`;
 }
+function nextRecurDue(due,recur){
+  const d=new Date((due||today())+'T12:00:00');
+  if(recur==='daily') d.setDate(d.getDate()+1);
+  else if(recur==='weekly') d.setDate(d.getDate()+7);
+  else if(recur==='monthly') d.setMonth(d.getMonth()+1);
+  return d.toLocaleDateString('sv');
+}
 function toggleTask(id){
   const tasks=load(K.tasks);
   const t=tasks.find(t=>t.id===id);
   if(!t)return;
   t.done=!t.done;
+  if(t.done&&t.recur){
+    const next={...t,id:uid(),done:false,created:today(),due:nextRecurDue(t.due,t.recur)};
+    tasks.unshift(next);
+  }
   save(K.tasks,tasks);
   renderTasks();if(activeTab==='home')renderHome();
 }
@@ -1587,6 +1613,7 @@ function editTask(id){
     if($('m-task-title')) $('m-task-title').value=t.title||'';
     if($('m-task-priority')) $('m-task-priority').value=t.priority||'Medium';
     if($('m-task-due')) $('m-task-due').value=t.due||'';
+    if($('m-task-recur')) $('m-task-recur').value=t.recur||'';
     // Business chip
     if(t.business){
       const bc=document.querySelectorAll('#m-task-biz-chips button');
@@ -3260,6 +3287,7 @@ const MODAL_FORMS = {
     <div class="field-row">
       <div class="field"><label>Priority</label><select class="select" id="m-task-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
       <div class="field"><label>Due Date</label><input class="input" id="m-task-due" type="date"></div>
+      <div class="field"><label>Repeat</label><select class="select" id="m-task-recur"><option value="">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
     </div>
     <div class="field">
       <label>Eisenhower — Urgency</label>
@@ -3281,6 +3309,7 @@ const MODAL_FORMS = {
       const tasks=load(K.tasks);
       const isWork=_taskTypeDefault==='work';
       const fields={title,type:_taskTypeDefault,priority:$('m-task-priority').value,due:$('m-task-due').value,
+        recur:$('m-task-recur').value||null,
         business:isWork?($('m-task-biz').value.trim()||''):'',
         dept:isWork?($('m-task-dept').value.trim()||''):'',
         urgency:_eimUrgency||null,importance:_eimImportance||null};
