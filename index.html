@@ -1291,6 +1291,7 @@ function calcStreak(id, log) {
 }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const safeColor = c => /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$|^var\(--[\w-]+\)$/.test(String(c||'')) ? c : null;
 
 function load(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch{return[];}}
 const toLbs=kg=>Math.round(kg*2.20462*10)/10;
@@ -1471,9 +1472,9 @@ function renderHomeGoals(){
     <div style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
         <span style="font-size:12.5px;font-weight:600;color:var(--text-primary)">${esc(g.title)}</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${g.color||'var(--t-goals)'}">${g.progress}%</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${safeColor(g.color)||'var(--t-goals)'}">${g.progress}%</span>
       </div>
-      <div class="progress-track"><div class="progress-fill" style="width:${g.progress}%;background:${g.color||'var(--t-goals)'}"></div></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${g.progress}%;background:${safeColor(g.color)||'var(--t-goals)'}"></div></div>
     </div>`).join('');
 }
 function renderHomeMeetings(){
@@ -1882,12 +1883,12 @@ function renderGoals(){
   const el=$('goalGrid');
   if(!goals.length){el.innerHTML='<div class="empty" style="grid-column:span 2"><span class="empty-icon">🎯</span><span class="empty-text">No goals yet.</span></div>';return;}
   el.innerHTML=goals.map(g=>`
-    <div class="goal-card" style="--goal-color:${g.color||'var(--t-goals)'}" ondragover="goalDragOver(event,'${g.id}')" ondrop="goalDrop(event,'${g.id}')" ondragleave="this.classList.remove('drag-over-goal')">
+    <div class="goal-card" style="--goal-color:${safeColor(g.color)||'var(--t-goals)'}" ondragover="goalDragOver(event,'${g.id}')" ondrop="goalDrop(event,'${g.id}')" ondragleave="this.classList.remove('drag-over-goal')">
       <span class="goal-drag" draggable="true" ondragstart="goalDragStart(event,'${g.id}')" ondragend="goalDragEnd()" title="Drag to reorder">⠿</span>
       <div class="goal-cat">${esc(g.cat||'Goal')}</div>
       <div class="goal-title">${esc(g.title)}</div>
       <div class="goal-pct">${g.progress}% complete</div>
-      <div class="progress-track" style="margin-bottom:12px"><div class="progress-fill" style="width:${g.progress}%;background:${g.color||'var(--t-goals)'}"></div></div>
+      <div class="progress-track" style="margin-bottom:12px"><div class="progress-fill" style="width:${g.progress}%;background:${safeColor(g.color)||'var(--t-goals)'}"></div></div>
       ${g.milestones&&g.milestones.length?`
         <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Milestones</div>
         ${g.milestones.map((m,mi)=>`<div class="milestone-row ${m.done?'done':''}" onclick="toggleMilestone('${g.id}',${mi})"><div class="milestone-check">${m.done?'✓':''}</div><span style="flex:1">${esc(m.text)}</span></div>`).join('')}`:'' }
@@ -2844,9 +2845,9 @@ function renderWeeklyReport(){
             <div style="margin-bottom:12px">
               <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
                 <span style="font-size:12px;font-weight:600;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">${esc(g.title)}</span>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${g.color||'var(--t-goals)'};flex-shrink:0">${g.progress}%</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${safeColor(g.color)||'var(--t-goals)'};flex-shrink:0">${g.progress}%</span>
               </div>
-              <div class="progress-track"><div class="progress-fill" style="width:${g.progress}%;background:${g.color||'var(--t-goals)'}"></div></div>
+              <div class="progress-track"><div class="progress-fill" style="width:${g.progress}%;background:${safeColor(g.color)||'var(--t-goals)'}"></div></div>
               <div style="font-size:10px;color:var(--text-muted);margin-top:4px">${g.milestones?g.milestones.filter(m=>m.done).length+' / '+g.milestones.length+' milestones':''}</div>
             </div>`).join('')
           :'<div style="font-size:12px;color:var(--text-muted);padding:10px 0;text-align:center">No goals yet.</div>'}
@@ -4361,13 +4362,13 @@ function renderLogsG(q){
   const all=load(K.goals).filter(g=>!q_||g.title.toLowerCase().includes(q_)||(g.cat||'').toLowerCase().includes(q_));
   logsCount(all.length+' goals');
   const rows=[...all].sort(dateSortFn('goals','deadline')).map(g=>dbRow([
-    `<strong style="color:${g.color||'var(--t-goals)'}">${esc(g.title)}</strong>`,
+    `<strong style="color:${safeColor(g.color)||'var(--t-goals)'}">${esc(g.title)}</strong>`,
     esc(g.cat||'—'),
     `<div style="display:flex;align-items:center;gap:8px">
       <div style="width:80px;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;flex-shrink:0">
-        <div style="height:100%;background:${g.color||'var(--t-goals)'};width:${g.progress}%"></div>
+        <div style="height:100%;background:${safeColor(g.color)||'var(--t-goals)'};width:${g.progress}%"></div>
       </div>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${g.color||'var(--t-goals)'};font-weight:700">${g.progress}%</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${safeColor(g.color)||'var(--t-goals)'};font-weight:700">${g.progress}%</span>
     </div>`,
     g.deadline?`<span style="font-family:'JetBrains Mono',monospace;font-size:11px">${fmtDate(g.deadline)}</span>`:'—',
     g.milestones&&g.milestones.length?`<span style="font-family:'JetBrains Mono',monospace;font-size:11px">${g.milestones.filter(m=>m.done).length}/${g.milestones.length}</span>`:'—',
