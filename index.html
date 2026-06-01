@@ -1674,7 +1674,8 @@ function renderHabitMonth(){
       const d=new Date(ds+'T12:00:00').getDay();
       const isT=ds===todayStr;
       const lbl=dowLabels[d===0?6:d-1];
-      return `<div style="width:18px;text-align:center;font-size:8px;font-weight:700;color:${isT?'var(--t-habits)':'var(--text-muted)'}">${lbl}</div>`;
+      const num=new Date(ds+'T12:00:00').getDate();
+      return `<div style="width:18px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-size:8px;font-weight:700;color:${isT?'var(--t-habits)':'var(--text-muted)'}">${lbl}</span><span style="font-size:8px;font-family:'JetBrains Mono',monospace;color:${isT?'var(--t-habits)':'var(--text-muted)'}">${num}</span></div>`;
     }).join('')}
   </div>`;
 
