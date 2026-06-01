@@ -4170,7 +4170,7 @@ function dbTable(headers,rows){
   const trs=rows.length?rows.join(''):`<tr><td colspan="${headers.length}" class="db-empty">No records yet.</td></tr>`;
   return `<table class="db-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
 }
-function dbRow(cells){return `<tr>${cells.map(c=>`<td>${c}</td>`).join('')}</tr>`;}
+function dbRow(cells,onclick){return `<tr${onclick?` onclick="${onclick}" style="cursor:pointer"`:''}>${cells.map(c=>`<td>${c}</td>`).join('')}</tr>`;}
 
 // ── Tasks Logs ────────────────────────────────────────
 function renderLogsT(q){
@@ -4399,8 +4399,8 @@ function renderLogsR(q){
     `<span style="max-width:200px;display:block;color:var(--text-secondary)">${esc((r.wins||'').slice(0,80))}${(r.wins||'').length>80?'…':''}</span>`,
     `<span style="max-width:200px;display:block;color:var(--text-secondary)">${esc((r.losses||'—').slice(0,80))}</span>`,
     `<span style="max-width:200px;display:block;color:var(--text-secondary)">${esc((r.priority||'—').slice(0,80))}</span>`,
-    `<button onclick="viewReview('${r.id}')" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:3px 7px;border-radius:3px" onmouseover="this.style.color='var(--t-review)'" onmouseout="this.style.color='var(--text-muted)'">👁</button>`+dbDelBtn('deleteReview',r.id)
-  ]));
+    `<span onclick="event.stopPropagation()">${dbDelBtn('deleteReview',r.id)}</span>`
+  ],`viewReview('${r.id}')`))
 
   logsHtml(dbTable([sortHdr('review','Week'),'Overall','Energy','Focus','Wins','Held Back','Next Priority',''],rows)+renderTrashSection('review'));
 }
