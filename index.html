@@ -1641,15 +1641,20 @@ function renderHabitMonth(){
     days.push(`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
   }
   // Header padding-left = drag(20)+gap(10)+icon(20)+gap(10)+name(112)+gap(10) = 182px
-  const dowHeader = `<div style="display:flex;gap:3px;margin-bottom:2px;padding-left:182px">
-    ${Array(offset).fill('<div style="width:18px"></div>').join('')}
-    ${days.map(ds=>{
-      const d=new Date(ds+'T12:00:00').getDay();
-      const isT=ds===todayStr;
-      const lbl=dowLabels[d===0?6:d-1];
-      const num=new Date(ds+'T12:00:00').getDate();
-      return `<div style="width:18px;text-align:center"><div style="font-size:8px;font-weight:700;color:${isT?'var(--t-habits)':'var(--text-muted)'};line-height:1.2">${lbl}</div><div style="font-size:8px;font-family:'JetBrains Mono',monospace;color:${isT?'var(--t-habits)':'var(--text-muted)'};line-height:1.2">${num}</div></div>`;
-    }).join('')}
+  const dowHeader = `<div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:2px">
+    <div style="width:20px;flex-shrink:0"></div>
+    <div style="width:20px;flex-shrink:0"></div>
+    <div style="width:112px;flex-shrink:0"></div>
+    <div style="display:flex;gap:3px">
+      ${Array(offset).fill('<div style="width:18px;flex-shrink:0"></div>').join('')}
+      ${days.map(ds=>{
+        const d=new Date(ds+'T12:00:00').getDay();
+        const isT=ds===todayStr;
+        const lbl=dowLabels[d===0?6:d-1];
+        const num=new Date(ds+'T12:00:00').getDate();
+        return `<div style="width:18px;flex-shrink:0;text-align:center"><div style="font-size:8px;font-weight:700;color:${isT?'var(--t-habits)':'var(--text-muted)'};line-height:1.2">${lbl}</div><div style="font-size:8px;font-family:'JetBrains Mono',monospace;color:${isT?'var(--t-habits)':'var(--text-muted)'};line-height:1.2">${num}</div></div>`;
+      }).join('')}
+    </div>
   </div>`;
   const habitRows = habits.map(h => {
     const done = days.map(ds => (log[ds]||[]).includes(h.id));
