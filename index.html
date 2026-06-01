@@ -200,10 +200,10 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
 .habit-name{font-size:13px;font-weight:600;color:var(--text-primary)}
 .habit-streak{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--yellow)}
 .habit-dots{display:flex;gap:4px;margin-left:auto;flex-shrink:0}
-.habit-days{display:flex;gap:0}
-.h-dot{width:24px;height:14px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid var(--border-md);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0}
-.h-dot.done{background:var(--t-habits);border-color:var(--t-habits);color:#000}
-.h-dot.today{border-color:var(--t-habits)}
+.habit-days{display:flex;gap:3px}
+.h-dot{width:18px;height:18px;border-radius:3px;background:rgba(255,255,255,.05);border:1.5px solid transparent;cursor:default;transition:opacity .1s;flex-shrink:0}
+.h-dot.done{background:var(--t-habits)}
+.h-dot.today{border-color:var(--t-habits);cursor:pointer}
 .habit-check-btn{width:28px;height:28px;border-radius:50%;border:2px solid var(--border-strong);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:13px}
 .habit-check-btn.done{background:var(--t-habits);border-color:var(--t-habits)}
 
@@ -1721,7 +1721,7 @@ function renderHabits(){
   el.innerHTML=`
     <div id="habits-day-header" style="display:flex;align-items:center;gap:12px;padding:8px 0 12px;border-bottom:1px solid var(--border);margin-bottom:4px">
       <div style="flex:1"></div>
-      <div style="display:flex;gap:0">${days.map((d,i)=>{const isT=d===today();const c=isT?'var(--t-habits)':'var(--text-muted)';const num=new Date(d+'T12:00:00').getDate();return `<div style="width:24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${c}">${dayLabels[i]}</span><span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:${c}">${num}</span></div>`;}).join('')}</div>
+      <div style="display:flex;gap:3px">${days.map((d,i)=>{const isT=d===today();const c=isT?'var(--t-habits)':'var(--text-muted)';const num=new Date(d+'T12:00:00').getDate();return `<div style="width:18px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-size:8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${c}">${dayLabels[i]}</span><span style="font-size:8px;font-family:'JetBrains Mono',monospace;color:${c}">${num}</span></div>`;}).join('')}</div>
       <div style="width:60px;text-align:center;font-size:9px;color:var(--text-muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase">Streak</div>
       <div style="width:28px"></div>
     </div>`+
@@ -1735,7 +1735,7 @@ function renderHabits(){
       <div class="habit-days">${days.map(d=>{
         const done=(log[d]||[]).includes(h.id);
         const isToday=d===today();
-        return `<div class="h-dot ${done?'done':''} ${isToday&&!done?'today':''}" onclick="${isToday?`toggleHabitHome('${h.id}')`:'void(0)'}" title="${d}">${done?'✓':''}</div>`;
+        return `<div class="h-dot ${done?'done':''} ${isToday&&!done?'today':''}" onclick="${isToday?`toggleHabitHome('${h.id}')`:'void(0)'}" title="${d}"></div>`;
       }).join('')}</div>
       <div class="habit-streak-col"><span class="habit-streak">${calcStreak(h.id,log)}🔥</span></div>
       <button class="delete-btn" title="Edit" onclick="editHabit('${h.id}')" style="font-size:13px">✏️</button>
