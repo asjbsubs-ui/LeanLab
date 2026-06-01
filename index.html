@@ -2757,6 +2757,9 @@ function saveReview(){
   if(ex>=0)reviews[ex]=entry;else reviews.unshift(entry);
   save(K.reviews,reviews);
   alert('Weekly review saved! 🔥');
+  ['rv-wins','rv-losses','rv-priority','rv-vision'].forEach(id=>{$(id).value='';});
+  ['rv-overall','rv-energy','rv-focus'].forEach(id=>{$(id).value=7;});
+  $('rv-overall-val').textContent=7;$('rv-energy-val').textContent=7;$('rv-focus-val').textContent=7;
 }
 function renderReviewHistory(){
   const reviews=load(K.reviews);
