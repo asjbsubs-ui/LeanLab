@@ -4194,6 +4194,29 @@ function renderLogsT(q){
 }
 
 // ── Meetings Logs ─────────────────────────────────────
+function viewMeeting(id){
+  const m=load(K.meetings).find(x=>x.id===id);if(!m)return;
+  const oc=_OUTCOME_COLORS[m.outcome]||'var(--text-muted)';
+  const contacts=load(K.directory);
+  const tagNames=(m.contactIds||[]).map(id=>contacts.find(c=>c.id===id)?.name).filter(Boolean);
+  const field=(label,val)=>val?`<div style="margin-bottom:12px"><div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">${label}</div><div style="font-size:13px;color:var(--text-primary);line-height:1.6;white-space:pre-wrap">${esc(val)}</div></div>`:'';
+  const el=document.getElementById('reviewReadOverlay');
+  el.innerHTML=`<div style="background:var(--bg-card);border:1px solid var(--border-md);border-radius:var(--r-xl);width:100%;max-width:560px;max-height:85vh;overflow-y:auto;padding:24px;position:relative">
+    <button onclick="document.getElementById('reviewReadOverlay').style.display='none'" style="position:absolute;top:14px;right:14px;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;line-height:1">✕</button>
+    <div style="font-family:'Orbitron',monospace;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t-meetings);margin-bottom:4px">Meeting</div>
+    <div style="font-size:16px;font-weight:700;color:var(--text-bright);margin-bottom:6px">${esc(m.title)}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;font-size:12px;color:var(--text-muted)">
+      <span>📅 ${fmtDate(m.date)}${m.time?' · '+m.time:''}</span>
+      ${m.attendees?`<span>👥 ${esc(m.attendees)}</span>`:''}
+      ${tagNames.length?`<span>👤 ${tagNames.map(n=>esc(n)).join(', ')}</span>`:''}
+      ${m.business?`<span>🏢 ${esc(m.business)}</span>`:''}
+      ${m.outcome?`<span style="color:${oc};font-weight:600">${esc(m.outcome)}</span>`:''}
+    </div>
+    ${field('Notes',m.notes)}
+    ${field('Post-Meeting Notes',m.outcomeNotes)}
+  </div>`;
+  el.style.display='flex';
+}
 function renderLogsM(q){
   const q_=(q||'').toLowerCase();
   const all=load(K.meetings).filter(m=>!q_||m.title.toLowerCase().includes(q_)||(m.attendees||'').toLowerCase().includes(q_)||(m.notes||'').toLowerCase().includes(q_)||(m.outcome||'').toLowerCase().includes(q_)||(m.outcomeNotes||'').toLowerCase().includes(q_));
@@ -4214,8 +4237,8 @@ function renderLogsM(q){
       logTagNames.length?logTagNames.map(n=>`<span style="font-size:10px;padding:1px 7px;border-radius:99px;background:rgba(34,211,238,.1);color:var(--t-meetings);border:1px solid rgba(34,211,238,.2)">👤 ${esc(n)}</span>`).join(' '):'—',
       outcomeBadge,
       m.outcomeNotes?`<span style="max-width:200px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px">${esc(m.outcomeNotes)}</span>`:'—',
-      `<button onclick="editMeeting('${m.id}')" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:3px 7px;border-radius:3px" onmouseover="this.style.color='var(--t-meetings)'" onmouseout="this.style.color='var(--text-muted)'">✏️</button>`+dbDelBtn('deleteMeeting',m.id)
-    ]);
+      `<span onclick="event.stopPropagation()"><button onclick="editMeeting('${m.id}')" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:3px 7px;border-radius:3px" onmouseover="this.style.color='var(--t-meetings)'" onmouseout="this.style.color='var(--text-muted)'">✏️</button>${dbDelBtn('deleteMeeting',m.id)}</span>`
+    ],`viewMeeting('${m.id}')`);
   });
   logsHtml(dbTable([sortHdr('meetings','Date'),'Time','Title','Business','Attendees','Contacts','Outcome','Post-Meeting Notes',''],rows)+renderTrashSection('meetings'));
 }
