@@ -698,13 +698,10 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
   <div style="padding:8px 16px 8px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px">
     <span class="sync-dot off" id="syncDot"></span>
     <span style="font-size:11px;color:var(--text-muted);flex:1" id="syncLabel">Not signed in</span>
-    <button onclick="doSignOut()" id="syncLogoutBtn" style="display:none;background:transparent;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);padding:0" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-muted)'">Sign out</button>
-  </div>
-  <div id="nameRow" style="display:none;padding:0 16px 10px;align-items:center;gap:6px">
-    <span id="nameDisplay" style="font-size:11px;color:var(--text-muted);flex:1"></span>
     <input id="nameInput" type="text" class="input" style="display:none;flex:1;font-size:11px;padding:3px 8px;height:26px" placeholder="Your name" onkeydown="if(event.key==='Enter')doUpdateName();if(event.key==='Escape')toggleNameEdit(false)">
-    <button id="nameEditBtn" onclick="toggleNameEdit(true)" style="background:transparent;border:none;cursor:pointer;font-size:12px;color:var(--text-muted);padding:0;flex-shrink:0" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-muted)'" title="Edit name">✏</button>
+    <button id="nameEditBtn" onclick="toggleNameEdit(true)" style="display:none;background:transparent;border:none;cursor:pointer;font-size:12px;color:var(--text-muted);padding:0;flex-shrink:0" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-muted)'" title="Edit name">✏</button>
     <button id="nameSaveBtn" onclick="doUpdateName()" style="display:none;background:transparent;border:none;cursor:pointer;font-size:12px;color:var(--green);padding:0;flex-shrink:0">✓</button>
+    <button onclick="doSignOut()" id="syncLogoutBtn" style="display:none;background:transparent;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);padding:0" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text-muted)'">Sign out</button>
   </div>
   <div style="padding:0 16px 10px;display:flex;gap:6px">
     <button onclick="openObsSettings()" style="flex:1;display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:var(--r-sm);border:1px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;transition:all .15s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border-md)';this.style.color='var(--text-muted)'">
@@ -5489,11 +5486,12 @@ function initSupabase(){
 }
 
 function setSyncStatus(state, label){
-  const dot=$('syncDot'), lbl=$('syncLabel'), btn=$('syncLogoutBtn');
+  const dot=$('syncDot'), lbl=$('syncLabel'), btn=$('syncLogoutBtn'), editBtn=$('nameEditBtn');
   if(!dot) return;
   dot.className='sync-dot'+(state==='on'?'':state==='syncing'?' syncing':' off');
   lbl.textContent=label;
   if(btn) btn.style.display=state==='on'?'inline':'none';
+  if(editBtn) editBtn.style.display=state==='on'?'inline':'none';
 }
 
 async function sbCheckSession(){
@@ -5523,8 +5521,6 @@ async function sbPullAndStart(){
   const email = _sbUser.email||'Synced';
   const _displayName=_sbUser.user_metadata?.full_name||email.split('@')[0];
   setSyncStatus('on', _displayName);
-  const _nr=$('nameRow'),_nd=$('nameDisplay');
-  if(_nr&&_nd){_nd.textContent=_displayName;_nr.style.display='flex';}
   document.getElementById('auth-screen').style.display='none';
   init();
   setTimeout(obsFullSync,2000);
@@ -5581,7 +5577,7 @@ async function doSignOut(){
   _sbUser=null;
   localStorage.removeItem(_SYNC_TS_KEY);
   setSyncStatus('off','Not signed in');
-  const _nr=$('nameRow');if(_nr){_nr.style.display='none';toggleNameEdit(false);}
+  toggleNameEdit(false);
   document.getElementById('auth-screen').style.display='flex';
   document.getElementById('auth-password').value='';
   document.getElementById('auth-err').textContent='';
@@ -5590,10 +5586,11 @@ async function doSignOut(){
 }
 
 function toggleNameEdit(editing){
-  $('nameDisplay').style.display=editing?'none':'';
+  $('syncLabel').style.display=editing?'none':'';
   $('nameInput').style.display=editing?'':'none';
-  $('nameEditBtn').style.display=editing?'none':'';
+  $('nameEditBtn').style.display=editing?'none':(_sbUser?'inline':'none');
   $('nameSaveBtn').style.display=editing?'':'none';
+  $('syncLogoutBtn').style.display=editing?'none':(_sbUser?'inline':'none');
   if(editing){$('nameInput').value=_sbUser?.user_metadata?.full_name||'';$('nameInput').focus();}
 }
 async function doUpdateName(){
@@ -5603,7 +5600,7 @@ async function doUpdateName(){
   const {data,error}=await _sb.auth.updateUser({data:{full_name:name}});
   if(error){showToast('Could not update name','var(--red)');return;}
   _sbUser=data.user;
-  $('nameDisplay').textContent=name;
+  $('syncLabel').textContent=name;
   const gn=$('greetName');if(gn)gn.textContent=name;
   toggleNameEdit(false);
   showToast('Name updated!','var(--green)');
