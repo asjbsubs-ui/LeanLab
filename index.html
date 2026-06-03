@@ -587,6 +587,9 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
   .habit-mcells>div{height:34px!important;min-width:26px!important;border-radius:5px!important}
   .habit-mheader-cell{min-width:26px!important;flex:1}
   #habit-month-view .card{overflow:visible}
+  #habit-month-view .card-body{padding:0}
+  #habitMonthHeader{overflow:hidden;position:sticky;top:54px;z-index:4;background:var(--bg-card);padding:14px 14px 6px;border-bottom:1px solid var(--border)}
+  #habitMonthList{padding:0 14px 14px}
   .habit-mname{position:sticky;left:0;background:var(--bg-card);z-index:5;box-shadow:6px 0 12px var(--bg-card)}
   .habit-mstats{position:sticky;right:0;background:var(--bg-card);z-index:5;box-shadow:-6px 0 12px var(--bg-card)}
   .logs-content{padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
@@ -831,7 +834,10 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
           <button class="btn btn-ghost btn-sm" onclick="habitMonthNext()" style="font-size:14px;padding:3px 9px">›</button>
         </div>
       </div>
-      <div class="card-body" id="habitMonthList"></div>
+      <div class="card-body" id="habitMonthBody">
+        <div id="habitMonthHeader"></div>
+        <div id="habitMonthList"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1633,8 +1639,10 @@ function renderHabitMonth(){
   const firstDow  = new Date(year, month, 1).getDay();
   const offset    = firstDow === 0 ? 6 : firstDow - 1;
   const list = $('habitMonthList');
+  const hdrEl = $('habitMonthHeader');
   if(!list) return;
   if(!habits.length){
+    if(hdrEl) hdrEl.innerHTML = '';
     list.innerHTML = '<div class="empty"><span class="empty-icon">⭐</span><span class="empty-text">No habits yet.</span></div>';
     return;
   }
@@ -1689,7 +1697,8 @@ function renderHabitMonth(){
       </div>
     </div>`;
   }).join('');
-  list.innerHTML = dowHeader + habitRows;
+  if(hdrEl) hdrEl.innerHTML = dowHeader; else list.innerHTML = dowHeader;
+  list.innerHTML = habitRows;
 }
 
 function renderHabits(){renderHabitMonth();}
@@ -5662,6 +5671,9 @@ function init(){
   document.documentElement.style.setProperty('--tab-color','var(--t-home)');
   updateScore();
   renderHome();
+  // Sync habit header scroll with rows
+  const _mList=$('habitMonthList'),_mHdr=$('habitMonthHeader');
+  if(_mList&&_mHdr)_mList.addEventListener('scroll',()=>{_mHdr.scrollLeft=_mList.scrollLeft;});
   // Update task pill
   const active=load(K.tasks).filter(t=>!t.done).length;
   $('pill-tasks').textContent=active;
