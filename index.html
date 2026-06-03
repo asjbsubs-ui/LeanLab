@@ -591,7 +591,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
   #habit-month-view .card-body{padding:0}
   #habitMonthHeader{overflow:hidden;position:sticky;top:calc(54px + env(safe-area-inset-top));z-index:4;background:var(--bg-card);padding:14px 14px 6px;border-bottom:1px solid var(--border)}
   #habitMonthList{padding:0 14px 14px}
-  .habit-mname{position:sticky;left:0;background:var(--bg-card);z-index:5;box-shadow:6px 0 12px var(--bg-card)}
+  .habit-mname{will-change:transform;background:var(--bg-card);z-index:5;box-shadow:6px 0 12px var(--bg-card)}
   .habit-mstats{position:sticky;right:0;background:var(--bg-card);z-index:5;box-shadow:-6px 0 12px var(--bg-card)}
   .logs-content{padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
   .stat-block{padding:12px}
@@ -5730,7 +5730,11 @@ function init(){
   renderHome();
   // Sync habit header scroll with rows
   const _mList=$('habitMonthList'),_mHdr=$('habitMonthHeader');
-  if(_mList&&_mHdr)_mList.addEventListener('scroll',()=>{_mHdr.scrollLeft=_mList.scrollLeft;});
+  if(_mList&&_mHdr)_mList.addEventListener('scroll',()=>{
+    _mHdr.scrollLeft=_mList.scrollLeft;
+    const x=_mList.scrollLeft;
+    _mList.querySelectorAll('.habit-mname').forEach(el=>{el.style.transform=`translateX(${x}px)`;});
+  });
   // Update task pill
   const active=load(K.tasks).filter(t=>!t.done).length;
   $('pill-tasks').textContent=active;
