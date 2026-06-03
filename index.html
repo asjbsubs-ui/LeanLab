@@ -613,6 +613,10 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
       <div class="auth-tab" id="auth-tab-up" onclick="switchAuthTab('up')">Sign Up</div>
     </div>
     <div class="auth-err" id="auth-err"></div>
+    <div class="field" id="auth-name-field" style="display:none">
+      <label>Your name</label>
+      <input class="input" id="auth-name" type="text" placeholder="First name" autocomplete="given-name">
+    </div>
     <div class="field">
       <label>Email</label>
       <input class="input" id="auth-email" type="email" placeholder="you@email.com" autocomplete="email">
@@ -5537,9 +5541,11 @@ async function doAuth(){
   const email=($('auth-email')||{value:''}).value.trim();
   const pass=($('auth-password')||{value:''}).value;
   const isSignUp=(document.getElementById('auth-tab-up')||{classList:{contains:()=>false}}).classList.contains('on');
+  const name=isSignUp?($('auth-name')||{value:''}).value.trim():'';
   const errEl=$('auth-err');
   const btn=$('auth-btn');
   const showErr=msg=>{if(errEl){errEl.style.color='var(--red)';errEl.textContent=msg;}};
+  if(isSignUp&&!name){showErr('Please enter your name.');return;}
   if(!email||!pass){showErr('Email and password required.');return;}
   if(!_sb){showErr('Connection unavailable. Use "Use without account" to continue offline.');return;}
   if(btn){btn.textContent='Loading…';btn.disabled=true;}
@@ -5547,7 +5553,7 @@ async function doAuth(){
   const timeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Request timed out — check your connection and try again.')),12000));
   try{
     if(isSignUp){
-      const {error:e} = await Promise.race([_sb.auth.signUp({email,password:pass}),timeout]);
+      const {error:e} = await Promise.race([_sb.auth.signUp({email,password:pass,options:{data:{full_name:name}}}),timeout]);
       if(e) throw e;
       if(errEl){errEl.style.color='var(--green)';errEl.textContent='Account created! Signing you in…';}
     }
@@ -5578,6 +5584,7 @@ function switchAuthTab(t){
   document.getElementById('auth-tab-up').classList.toggle('on',t==='up');
   document.getElementById('auth-btn').textContent=t==='in'?'Sign In':'Sign Up';
   document.getElementById('auth-err').textContent='';
+  document.getElementById('auth-name-field').style.display=t==='up'?'':'none';
 }
 
 // ── Notes Logs ────────────────────────────────────────
