@@ -711,7 +711,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
 <div id="tab-home" class="tab-panel active">
   <div id="homeAthena" style="margin-bottom:4px"></div>
   <div class="home-hero">
-    <div class="greeting">Good <span id="timeOfDay">morning</span>, Antonio</div>
+    <div class="greeting">Good <span id="timeOfDay">morning</span>, <span id="greetName">there</span></div>
     <div class="greeting-sub" id="heroDate"></div>
     <div class="discipline-ring">
       <div>
@@ -5661,6 +5661,8 @@ function init(){
   // Set time of day greeting
   const h=new Date().getHours();
   $('timeOfDay').textContent=h<12?'morning':h<17?'afternoon':'evening';
+  const _gn=$('greetName');
+  if(_gn){const _nm=_sbUser?(_sbUser.user_metadata?.full_name||_sbUser.email.split('@')[0]):'there';_gn.textContent=_nm;}
   // Set dates
   const now=new Date();
   $('heroDate').textContent=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
