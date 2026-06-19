@@ -1585,7 +1585,7 @@ function editTask(id){
     if($('modalTitle')) $('modalTitle').textContent='Edit Task';
   },60);
 }
-let _editingTaskId=null;
+let _editingTaskId=null;let _noteToTaskSourceId=null;
 
 async function addTaskToGcal(id){
   const t=load(K.tasks).find(x=>x.id===id);
@@ -2967,6 +2967,7 @@ function noteToTask(id){
   const title=n.text.trim();
   _taskTypeDefault='work';
   _editingTaskId=null;
+  _noteToTaskSourceId=id;
   openModal('task','work');
   setTimeout(()=>{
     if($('m-task-title')) $('m-task-title').value=title;
@@ -3311,6 +3312,7 @@ const MODAL_FORMS = {
         tasks.unshift({id:uid(),...fields,done:false,created:today()});
       }
       save(K.tasks,tasks);closeModal();renderTasks();if(activeTab==='home')renderHome();
+      if(_noteToTaskSourceId){const _ns=load(K.notes);const _ni=_ns.findIndex(n=>n.id===_noteToTaskSourceId);if(_ni>=0){_ns[_ni].status='in-progress';save(K.notes,_ns);renderNotes();}_noteToTaskSourceId=null;}
     }},
   habit:{title:'New Habit',html:`
     <div class="field-row">
