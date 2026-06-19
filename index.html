@@ -3466,7 +3466,7 @@ const MODAL_FORMS = {
     const w=_editingWorkoutId?load(K.workouts).find(x=>x.id===_editingWorkoutId):null;
     $('modalTitle').textContent=w?'Edit Workout':'Log Workout';
     const focusChips=['Push','Pull','Legs','Upper Body','Full Body','Chest & Shoulders','Chest & Back','Back & Biceps','Arms','Core','Cardio','Basketball','Golf','Pickleball','Yoga'];
-    const presetFocus=w&&focusChips.includes(w.name)?w.name:'';
+    const presetFocuses=w?(w.name||'').split(' & ').filter(f=>focusChips.includes(f)):[];
     return `
     <div class="field-row">
       <div class="field"><label>Workout Type</label><select class="select" id="m-wo-type">
@@ -3477,9 +3477,9 @@ const MODAL_FORMS = {
     <div class="field">
       <label>Name / Focus</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="m-wo-focus-chips">
-        ${focusChips.map(f=>`<button type="button" onclick="selectWorkoutFocus(this,'${f}')" class="${presetFocus===f?'focus-active':''}" style="padding:5px 11px;border-radius:99px;border:1px solid ${presetFocus===f?'var(--t-fitness)':'var(--border-md)'};background:${presetFocus===f?'rgba(74,222,128,.15)':'transparent'};color:${presetFocus===f?'var(--t-fitness)':'var(--text-muted)'};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;transition:all .15s" onmouseover="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-strong)'" onmouseout="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-md)'">${f}</button>`).join('')}
+        ${focusChips.map(f=>{const on=presetFocuses.includes(f);return`<button type="button" onclick="selectWorkoutFocus(this)" class="${on?'focus-active':''}" style="padding:5px 11px;border-radius:99px;border:1px solid ${on?'var(--purple)':'var(--border-md)'};background:${on?'rgba(192,132,252,.15)':'transparent'};color:${on?'var(--purple)':'var(--text-muted)'};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;transition:all .15s" onmouseover="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-strong)'" onmouseout="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-md)'">${f}</button>`;}).join('')}
       </div>
-      <input class="input" id="m-wo-name" placeholder="Or type a custom focus…" oninput="clearWorkoutChips()" style="font-size:12px" value="${esc(w?.name||'')}">
+      <input class="input" id="m-wo-name" placeholder="Or type a custom focus…" oninput="clearWorkoutChips()" style="font-size:12px" value="${esc(presetFocuses.length?presetFocuses.join(' & '):w?.name||'')}">
     </div>
     <div class="field"><label>Notes</label><textarea class="textarea" id="m-wo-notes" placeholder="How did it go? PRs?">${esc(w?.notes||'')}</textarea></div>`;
   },
@@ -5761,24 +5761,15 @@ async function renderLogsN(q){
 }
 
 // ── Workout focus chip selector ───────────────────────
-function selectWorkoutFocus(btn, label){
-  const chips = document.querySelectorAll('#m-wo-focus-chips button');
-  const wasActive = btn.classList.contains('focus-active');
-  chips.forEach(c=>{
-    c.classList.remove('focus-active');
-    c.style.background='transparent';
-    c.style.borderColor='var(--border-md)';
-    c.style.color='var(--text-muted)';
-  });
-  if(!wasActive){
-    btn.classList.add('focus-active');
-    btn.style.background='rgba(192,132,252,.15)';
-    btn.style.borderColor='var(--purple)';
-    btn.style.color='var(--purple)';
-    $('m-wo-name').value = label;
-  } else {
-    $('m-wo-name').value = '';
-  }
+function selectWorkoutFocus(btn){
+  btn.classList.toggle('focus-active');
+  const isActive=btn.classList.contains('focus-active');
+  btn.style.background=isActive?'rgba(192,132,252,.15)':'transparent';
+  btn.style.borderColor=isActive?'var(--purple)':'var(--border-md)';
+  btn.style.color=isActive?'var(--purple)':'var(--text-muted)';
+  const selected=[];
+  document.querySelectorAll('#m-wo-focus-chips button').forEach(c=>{if(c.classList.contains('focus-active'))selected.push(c.textContent);});
+  $('m-wo-name').value=selected.join(' & ');
 }
 function clearWorkoutChips(){
   document.querySelectorAll('#m-wo-focus-chips button').forEach(c=>{
