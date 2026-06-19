@@ -5574,35 +5574,42 @@ function setSyncStatus(state, label){
 
 async function sbCheckSession(){
   if(!_sb) return;
-  const {data:{session}} = await _sb.auth.getSession();
-  if(session){ _sbUser=session.user; await sbPullAndStart(); }
-  else{ document.getElementById('auth-screen').style.display='flex'; }
+  try{
+    const {data:{session}} = await _sb.auth.getSession();
+    if(session){ _sbUser=session.user; await sbPullAndStart(); }
+    else{ document.getElementById('auth-screen').style.display='flex'; }
+  }catch(e){
+    console.warn('Session check failed',e);
+    document.getElementById('auth-screen').style.display='flex';
+  }
 }
 
 async function sbPullAndStart(){
   setSyncStatus('syncing','Syncing…');
+  const pullTimeout=new Promise((_,rej)=>setTimeout(()=>rej(new Error('Sync timed out')),15000));
   try{
-    const lastSync = localStorage.getItem(_SYNC_TS_KEY);
-    let q = _sb.from('leanhq_sync').select('key,value,updated_at').eq('user_id',_sbUser.id);
-    if(lastSync) q = q.gt('updated_at', lastSync);
-    const {data,error} = await q;
-    if(!error && data && data.length){
-      data.forEach(r=>{ if(r.value!==null) localStorage.setItem(r.key,JSON.stringify(r.value)); });
-      // Advance the cursor to the latest row we received so next pull is truly incremental
-      const maxTs = data.reduce((m,r)=>r.updated_at>m?r.updated_at:m,'');
-      if(maxTs) localStorage.setItem(_SYNC_TS_KEY, maxTs);
-    } else if(!lastSync){
-      // First login with no rows — mark as synced so future pulls are incremental
-      localStorage.setItem(_SYNC_TS_KEY, new Date().toISOString());
-    }
-  }catch(e){ console.warn('Pull error',e); }
-  await sbFlushPending();
+    await Promise.race([_sbDoPull(),pullTimeout]);
+  }catch(e){ console.warn('Pull/flush error — starting with local data',e); }
   const email = _sbUser.email||'Synced';
   const _displayName=_sbUser.user_metadata?.full_name||email.split('@')[0];
   setSyncStatus('on', _displayName);
   document.getElementById('auth-screen').style.display='none';
   init();
   setTimeout(obsFullSync,2000);
+}
+async function _sbDoPull(){
+  const lastSync = localStorage.getItem(_SYNC_TS_KEY);
+  let q = _sb.from('leanhq_sync').select('key,value,updated_at').eq('user_id',_sbUser.id);
+  if(lastSync) q = q.gt('updated_at', lastSync);
+  const {data,error} = await q;
+  if(!error && data && data.length){
+    data.forEach(r=>{ if(r.value!==null) localStorage.setItem(r.key,JSON.stringify(r.value)); });
+    const maxTs = data.reduce((m,r)=>r.updated_at>m?r.updated_at:m,'');
+    if(maxTs) localStorage.setItem(_SYNC_TS_KEY, maxTs);
+  } else if(!lastSync){
+    localStorage.setItem(_SYNC_TS_KEY, new Date().toISOString());
+  }
+  await sbFlushPending();
 }
 
 async function sbPush(k,v){
