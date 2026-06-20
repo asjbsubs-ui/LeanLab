@@ -2637,33 +2637,25 @@ function _ytExtractVideoId(url){
 }
 
 async function _ytFetchAll(videoId){
-  const proxy='https://corsproxy.io/?url=';
-  const pageUrl='https://www.youtube.com/watch?v='+encodeURIComponent(videoId);
-  const html=await fetch(proxy+encodeURIComponent(pageUrl)).then(r=>{if(!r.ok)throw new Error('fetch failed');return r.text();});
-  const titleMatch=html.match(/"title":\{"runs":\[\{"text":"([^"]+)"/);
-  const authorMatch=html.match(/"ownerChannelName":"([^"]+)"/);
-  const meta={
-    title:(titleMatch?.[1]||'YouTube Video').replace(/\\u0026/g,'&').replace(/\\"/g,'"').replace(/&#39;/g,"'"),
-    author:authorMatch?.[1]||''
-  };
-  const pr=html.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|const|let|window)/s);
-  if(!pr) return {meta,transcript:null};
-  let pd;try{pd=JSON.parse(pr[1]);}catch{return {meta,transcript:null};}
-  const tracks=pd?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-  if(!tracks?.length) return {meta,transcript:null};
-  const track=tracks.find(t=>t.languageCode?.startsWith('en'))||tracks[0];
-  if(!track?.baseUrl) return {meta,transcript:null};
+  const ytUrl='https://www.youtube.com/watch?v='+videoId;
+  // Meta via YouTube oEmbed — CORS-friendly, no auth needed
+  let meta={title:'YouTube Video',author:''};
   try{
-    const xml=await fetch(proxy+encodeURIComponent(track.baseUrl+'&fmt=json3')).then(r=>r.text());
-    try{
-      const j=JSON.parse(xml);
-      const t=j.events?.filter(e=>e.segs).map(e=>e.segs.map(s=>s.utf8||'').join('')).join(' ').replace(/\n/g,' ').replace(/\s+/g,' ').trim();
-      if(t) return {meta,transcript:t};
-    }catch{}
-    const doc=new DOMParser().parseFromString(xml,'text/xml');
-    const t=Array.from(doc.querySelectorAll('text')).map(n=>n.textContent).join(' ').replace(/\s+/g,' ').trim();
-    return {meta,transcript:t||null};
-  }catch{return {meta,transcript:null};}
+    const o=await fetch('https://www.youtube.com/oembed?url='+encodeURIComponent(ytUrl)+'&format=json').then(r=>r.json());
+    meta={title:o.title||'YouTube Video',author:o.author_name||''};
+  }catch{}
+  // Transcript via supadata.ai
+  try{
+    const key=localStorage.getItem('supadata_api_key')||'';
+    const headers=key?{'x-api-key':key}:{};
+    const r=await fetch('https://api.supadata.ai/v1/youtube/transcript?url='+encodeURIComponent(ytUrl)+'&text=true',{headers});
+    if(r.ok){
+      const d=await r.json();
+      const transcript=typeof d.content==='string'?d.content:null;
+      return {meta,transcript};
+    }
+  }catch{}
+  return {meta,transcript:null};
 }
 
 async function _ytCallClaude(system,user){
@@ -2817,21 +2809,23 @@ function _ytApproveIdea(){
 function _ytSkipIdea(){showToast('Saved','var(--green)');ytFlowClose();}
 
 function openClaudeSettings(){
-  const key=localStorage.getItem('anthropic_api_key')||'';
+  const aKey=localStorage.getItem('anthropic_api_key')||'';
+  const sKey=localStorage.getItem('supadata_api_key')||'';
   $('modalTitle').textContent='Claude AI Settings';
   $('modalBody').innerHTML=`
-    <div class="field"><label>Anthropic API Key</label><input class="input" id="claude-key" value="${esc(key)}" placeholder="sk-ant-…" style="font-family:'JetBrains Mono',monospace;font-size:12px" type="password"></div>
-    <div style="font-size:11px;color:var(--text-muted);line-height:1.7;padding:10px;background:var(--bg-alt);border-radius:var(--r-sm)">Used for YouTube transcript extraction and idea generation.<br>Get your key at <strong style="color:var(--text-secondary)">console.anthropic.com</strong></div>`;
+    <div class="field"><label>Anthropic API Key</label><input class="input" id="claude-key" value="${esc(aKey)}" placeholder="sk-ant-…" style="font-family:'JetBrains Mono',monospace;font-size:12px" type="password"><div style="font-size:10px;color:var(--text-muted);margin-top:4px">Lesson extraction &amp; idea generation · <strong style="color:var(--text-secondary)">console.anthropic.com</strong></div></div>
+    <div class="field"><label>Supadata API Key <span style="font-weight:400;color:var(--text-muted)">(YouTube transcripts)</span></label><input class="input" id="supadata-key" value="${esc(sKey)}" placeholder="Optional — free tier at supadata.ai" style="font-family:'JetBrains Mono',monospace;font-size:12px" type="password"><div style="font-size:10px;color:var(--text-muted);margin-top:4px">Free account at <strong style="color:var(--text-secondary)">supadata.ai</strong> · 500 transcripts/month free</div></div>`;
   $('modalFoot').innerHTML=`
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-primary" style="background:var(--t-selfdev);color:#000" onclick="saveClaudeSettings()">Save</button>`;
   $('modalOverlay').classList.add('open');
 }
 function saveClaudeSettings(){
-  const key=$('claude-key').value.trim();
-  if(key) localStorage.setItem('anthropic_api_key',key);
-  else localStorage.removeItem('anthropic_api_key');
-  closeModal();showToast('Claude settings saved','var(--t-selfdev)');
+  const aKey=$('claude-key').value.trim();
+  const sKey=$('supadata-key').value.trim();
+  if(aKey) localStorage.setItem('anthropic_api_key',aKey); else localStorage.removeItem('anthropic_api_key');
+  if(sKey) localStorage.setItem('supadata_api_key',sKey); else localStorage.removeItem('supadata_api_key');
+  closeModal();showToast('Settings saved','var(--t-selfdev)');
 }
 
 // ── FITNESS ───────────────────────────────────────────
