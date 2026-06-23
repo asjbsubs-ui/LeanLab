@@ -923,7 +923,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
     <div class="ph-left">
       <div class="ph-eyebrow" style="color:var(--t-selfdev)">Growth</div>
       <div class="ph-title" style="color:var(--t-selfdev)">Growth</div>
-      <div class="ph-sub" id="sd-sub">Knowledge, quotes, and vocabulary.</div>
+      <div class="ph-sub" id="sd-sub">Lessons, skills, systems, quotes, and vocabulary.</div>
     </div>
     <div class="ph-actions">
       <button class="btn btn-ghost" onclick="sdExport()">📤 Export</button>
@@ -933,16 +933,24 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
     </div>
   </div>
   <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px">
-    <button id="sdtab-knowledge" onclick="switchSdTab('knowledge')" style="padding:8px 18px;border:none;border-bottom:2px solid var(--t-selfdev);background:transparent;color:var(--t-selfdev);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;transition:all .15s">📚 Knowledge</button>
+    <button id="sdtab-lessons" onclick="switchSdTab('lessons')" style="padding:8px 18px;border:none;border-bottom:2px solid var(--t-selfdev);background:transparent;color:var(--t-selfdev);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;transition:all .15s">💡 Lessons</button>
+    <button id="sdtab-skills" onclick="switchSdTab('skills')" style="padding:8px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all .15s">🛠️ Skills</button>
+    <button id="sdtab-systems" onclick="switchSdTab('systems')" style="padding:8px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all .15s">⚙️ Systems</button>
     <button id="sdtab-quotes" onclick="switchSdTab('quotes')" style="padding:8px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all .15s">💬 Quotes</button>
     <button id="sdtab-vocab" onclick="switchSdTab('vocab')" style="padding:8px 18px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-muted);cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all .15s">📖 Vocabulary</button>
   </div>
-  <div id="sd-knowledge">
+  <div id="sd-lessons">
     <div style="display:flex;gap:10px;margin-bottom:16px">
-      <input id="yt-quick-url" class="input" placeholder="Paste a YouTube URL to extract knowledge…" style="flex:1" onkeydown="if(event.key==='Enter')_ytQuickFromInput()">
+      <input id="yt-quick-url" class="input" placeholder="Paste a YouTube URL to extract a lesson…" style="flex:1" onkeydown="if(event.key==='Enter')_ytQuickFromInput()">
       <button onclick="_ytQuickFromInput()" style="padding:0 16px;height:40px;border-radius:var(--r-sm);border:none;background:var(--t-selfdev);color:#000;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">▶ Extract</button>
     </div>
-    <div id="knowledgeList"><div class="empty"><span class="empty-icon">📚</span><span class="empty-text">No knowledge logged yet.</span></div></div>
+    <div id="lessonsList"><div class="empty"><span class="empty-icon">💡</span><span class="empty-text">No lessons logged yet.</span></div></div>
+  </div>
+  <div id="sd-skills" style="display:none">
+    <div id="skillsList"><div class="empty"><span class="empty-icon">🛠️</span><span class="empty-text">No skills logged yet.</span></div></div>
+  </div>
+  <div id="sd-systems" style="display:none">
+    <div id="systemsList"><div class="empty"><span class="empty-icon">⚙️</span><span class="empty-text">No systems logged yet.</span></div></div>
   </div>
   <div id="sd-quotes" style="display:none"><div id="quotesList"><div class="empty"><span class="empty-icon">💬</span><span class="empty-text">No quotes yet.</span></div></div></div>
   <div id="sd-vocab" style="display:none">
@@ -2241,7 +2249,6 @@ function renderSelfDev(){
   if(_sdTab==='quotes'){renderQuotes();return;}
   if(_sdTab==='vocab'){renderVocab();return;}
   migrateKnowledge();
-  // One-time: stamp any entry missing a date
   if(!localStorage.getItem('ahq_km_dates')){
     const items=load(K.knowledge);
     let changed=false;
@@ -2249,52 +2256,60 @@ function renderSelfDev(){
     if(changed) save(K.knowledge,items);
     localStorage.setItem('ahq_km_dates','1');
   }
-  const items = load(K.knowledge);
-  const el = $('knowledgeList');
+  const all=load(K.knowledge);
+  // Migrate legacy items (no category) → skills
+  let migrated=false;
+  all.forEach(i=>{if(!i.category){i.category='skills';migrated=true;}});
+  if(migrated) save(K.knowledge,all);
+
+  const CAT_EL={lessons:'lessonsList',skills:'skillsList',systems:'systemsList'};
+  const CAT_ICON={lessons:'💡',skills:'🛠️',systems:'⚙️'};
+  const elId=CAT_EL[_sdTab]||'lessonsList';
+  const el=$(elId);
+  if(!el) return;
+
+  const items=all.filter(i=>i.category===_sdTab);
   if(!items.length){
-    el.innerHTML='<div class="empty"><span class="empty-icon">📚</span><span class="empty-text">No knowledge logged yet. Add your first entry.</span></div>';
+    el.innerHTML=`<div class="empty"><span class="empty-icon">${CAT_ICON[_sdTab]||'📚'}</span><span class="empty-text">No ${_sdTab} logged yet. Add your first entry.</span></div>`;
     return;
   }
-  // Group by skill
-  const groups = {};
-  items.forEach(i=>{
-    const s = i.skill||'Other';
-    if(!groups[s]) groups[s]=[];
-    groups[s].push(i);
-  });
-  const skillOrder = ['Marketing','Business','Sales','Finance','Technical','Personal Development','Health & Fitness','Leadership','Mindset','Other'];
-  const sorted = Object.keys(groups).sort((a,b)=>{ const ai=skillOrder.indexOf(a),bi=skillOrder.indexOf(b); return (ai<0?99:ai)-(bi<0?99:bi); });
+  const showProgress=(_sdTab==='skills');
+  const groups={};
+  items.forEach(i=>{const s=i.skill||'Other';if(!groups[s])groups[s]=[];groups[s].push(i);});
+  const skillOrder=['Marketing','Business','Sales','Finance','Technical','Personal Development','Health & Fitness','Leadership','Mindset','Other'];
+  const sorted=Object.keys(groups).sort((a,b)=>{const ai=skillOrder.indexOf(a),bi=skillOrder.indexOf(b);return (ai<0?99:ai)-(bi<0?99:bi);});
 
-  el.innerHTML = sorted.map(skill=>{
-    const list = groups[skill];
-    const done = list.filter(i=>i.status==='done').length;
-    const icon = SKILL_ICONS[skill]||'📚';
-    const rows = list.map(i=>{
-      const pct = i.status==='done'?100:i.progress||0;
-      const typeIcon = TYPE_ICONS[i.type]||'📌';
-      const statusLbl = STATUS_MAP[i.status]||i.status||'In Progress';
-      const statusCol = i.status==='done'?'var(--green)':i.status==='todo'?'var(--text-muted)':'#60a5fa';
+  el.innerHTML=sorted.map(skill=>{
+    const list=groups[skill];
+    const done=list.filter(i=>i.status==='done').length;
+    const icon=SKILL_ICONS[skill]||'📚';
+    const rows=list.map(i=>{
+      const pct=i.status==='done'?100:i.progress||0;
+      const typeIcon=TYPE_ICONS[i.type]||'📌';
+      const statusCol=i.status==='done'?'var(--green)':i.status==='todo'?'var(--text-muted)':'#60a5fa';
       return `<div class="book-row" onclick="viewKnowledge('${i.id}')" style="cursor:pointer">
         <div class="book-cover" style="background:rgba(34,211,238,.08);font-size:18px">${typeIcon}</div>
         <div class="book-info" style="flex:1;min-width:0">
           <div class="book-title">${esc(i.title)}</div>
-          <div class="book-author">${i.type}${i.source?' · '+esc(i.source):''}${i.date?' · '+fmtDateShort(i.date):''}</div>
-          ${i.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.5">${esc(i.notes.slice(0,100))}${i.notes.length>100?'…':''}</div>`:''}
-          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <div class="book-author">${i.type||''}${i.source?' · '+esc(i.source):''}${i.date?' · '+fmtDateShort(i.date):''}</div>
+          ${i.notes?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.5">${esc(i.notes.slice(0,120))}${i.notes.length>120?'…':''}</div>`:''}
+          ${showProgress?`<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
             <div class="progress-track" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:var(--t-selfdev)"></div></div>
             <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${statusCol};white-space:nowrap">${i.status==='done'?'✓ Done':pct+'%'}</span>
-          </div>
+          </div>`:''}
         </div>
         <button class="delete-btn" style="color:var(--text-muted);margin-right:2px" onclick="event.stopPropagation();editKnowledge('${i.id}')">✏️</button>
         <button class="delete-btn" onclick="event.stopPropagation();deleteKnowledge('${i.id}')">✕</button>
       </div>`;
     }).join('');
-
+    const headerRight=showProgress
+      ?`<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted)">${done}/${list.length} done</span>`
+      :`<span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted)">${list.length}</span>`;
     return `<div class="card" style="margin-bottom:14px">
       <div class="card-accent" style="background:var(--t-selfdev)"></div>
       <div class="card-header">
         <span class="card-title" style="color:var(--t-selfdev)">${icon} ${skill}</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted)">${done}/${list.length} done</span>
+        ${headerRight}
       </div>
       <div class="card-body">${rows}</div>
     </div>`;
@@ -2309,10 +2324,10 @@ function deleteKnowledge(id){
 }
 
 // ── Growth tab switching ───────────────────────────────
-let _sdTab='knowledge';
+let _sdTab='lessons';
 function switchSdTab(tab){
   _sdTab=tab;
-  ['knowledge','quotes','vocab'].forEach(t=>{
+  ['lessons','skills','systems','quotes','vocab'].forEach(t=>{
     const panel=document.getElementById('sd-'+t);
     if(panel) panel.style.display=t===tab?'':'none';
     const btn=document.getElementById('sdtab-'+t);
@@ -2324,15 +2339,15 @@ function switchSdTab(tab){
   });
   const addBtn=document.getElementById('sd-add-btn');
   if(addBtn){
-    const cfg={knowledge:'+ Knowledge',quotes:'+ Quote',vocab:'+ Word'};
+    const cfg={lessons:'+ Lesson',skills:'+ Skill',systems:'+ System',quotes:'+ Quote',vocab:'+ Word'};
     addBtn.textContent=cfg[tab]||'+ Add';
   }
-  if(tab==='knowledge') renderSelfDev();
-  else if(tab==='quotes') renderQuotes();
-  else renderVocab();
+  if(tab==='quotes') renderQuotes();
+  else if(tab==='vocab') renderVocab();
+  else renderSelfDev();
 }
 function sdAdd(){
-  const m={knowledge:'knowledge',quotes:'quote',vocab:'vocab'};
+  const m={lessons:'knowledge',skills:'knowledge',systems:'knowledge',quotes:'quote',vocab:'vocab'};
   openModal(m[_sdTab]||'knowledge');
 }
 
@@ -2458,9 +2473,9 @@ function sdExport(){
     content=csv(['word','definition','example','category','date'],items.map(v=>[v.word,v.definition,v.example,v.category,v.date]));
     filename='vocabulary.csv';
   } else {
-    const items=load(K.knowledge);
-    content=csv(['title','type','skill','source','link','status','progress','notes','date'],items.map(i=>[i.title,i.type,i.skill,i.source,i.link,i.status,i.progress,i.notes,i.date]));
-    filename='knowledge.csv';
+    const items=load(K.knowledge).filter(i=>i.category===_sdTab);
+    content=csv(['title','category','type','skill','source','link','status','progress','notes','date'],items.map(i=>[i.title,i.category||_sdTab,i.type,i.skill,i.source,i.link,i.status||'',i.progress||0,i.notes,i.date]));
+    filename=_sdTab+'.csv';
   }
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/csv'}));a.download=filename;a.click();
   showToast(`📤 Exported ${filename}`,'var(--green)');
@@ -2494,8 +2509,9 @@ function _sdParseCSV(text){
     save(K.vocab,items);if(_sdTab==='vocab')renderVocab();
   } else {
     const items=load(K.knowledge);
-    rows.forEach(line=>{const row=parseRow(line);if(!row[0])return;items.push({id:uid(),title:get(row,'title'),type:get(row,'type')||'Book',skill:get(row,'skill')||'Personal Development',source:get(row,'source'),link:get(row,'link'),status:get(row,'status')||'todo',progress:parseInt(get(row,'progress'))||0,notes:get(row,'notes')||get(row,'note'),date:_normDate(get(row,'date'))});count++;});
-    save(K.knowledge,items);if(_sdTab==='knowledge')renderSelfDev();
+    const importCat=['lessons','skills','systems'].includes(_sdTab)?_sdTab:'lessons';
+    rows.forEach(line=>{const row=parseRow(line);if(!row[0])return;items.push({id:uid(),title:get(row,'title'),category:get(row,'category')||importCat,type:get(row,'type')||'Other',skill:get(row,'skill')||'Other',source:get(row,'source'),link:get(row,'link'),status:get(row,'status')||'',progress:parseInt(get(row,'progress'))||0,notes:get(row,'notes')||get(row,'note'),date:_normDate(get(row,'date'))});count++;});
+    save(K.knowledge,items);if(['lessons','skills','systems'].includes(_sdTab))renderSelfDev();
   }
   showToast(`✅ Imported ${count} item${count!==1?'s':''}`,count?'var(--green)':'var(--amber)');
 }
@@ -2511,7 +2527,7 @@ function viewKnowledge(id){
   const el=document.getElementById('reviewReadOverlay');
   el.innerHTML=`<div style="background:var(--bg-card);border:1px solid var(--border-md);border-radius:var(--r-xl);width:100%;max-width:560px;max-height:85vh;overflow-y:auto;padding:24px;position:relative">
     <button onclick="document.getElementById('reviewReadOverlay').style.display='none'" style="position:absolute;top:14px;right:14px;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;line-height:1">✕</button>
-    <div style="font-family:'Orbitron',monospace;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t-selfdev);margin-bottom:4px">${esc(k.type||'Growth')}</div>
+    <div style="font-family:'Orbitron',monospace;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t-selfdev);margin-bottom:4px">${esc(k.category||'Lesson')} · ${esc(k.type||'')}</div>
     <div style="font-size:16px;font-weight:700;color:var(--text-bright);margin-bottom:10px">${esc(k.title)}</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;font-size:12px;color:var(--text-muted)">
       ${k.skill?`<span>${esc(k.skill)}</span>`:''}
@@ -2758,7 +2774,7 @@ function _ytApproveExtraction(){
 
   if(lesson){
     const items=load(K.knowledge);
-    items.push({id:uid(),title:_ytFlow.meta?.title||'YouTube Video',type:'Video',skill:'Other',source:_ytFlow.meta?.author||'',link:_ytFlow.ytUrl||'',status:'done',progress:100,notes:lesson,date:today()});
+    items.push({id:uid(),title:_ytFlow.meta?.title||'YouTube Video',category:'lessons',type:'Video',skill:'Other',source:_ytFlow.meta?.author||'',link:_ytFlow.ytUrl||'',notes:lesson,date:today()});
     save(K.knowledge,items);
   }
   if(keptQuotes.length){
@@ -3720,16 +3736,22 @@ const MODAL_FORMS = {
       }
       save(K.goals,goals);closeModal();renderGoals();if(activeTab==='home')renderHome();
     }},
-  knowledge:{title:'Add Knowledge',html:()=>{
+  knowledge:{title:'Add Lesson',html:()=>{
     const k=_editingKnowledgeId?load(K.knowledge).find(x=>x.id===_editingKnowledgeId):null;
-    $('modalTitle').textContent=k?'Edit Knowledge':'Add Knowledge';
-    const sel=(id,val)=>`<option value="${id}"${k&&k.type===id?' selected':''}>`;
-    const selSk=(id,val)=>`<option value="${id}"${k&&k.skill===id?' selected':''}>`;
+    const cat=k?.category||_sdTab||'lessons';
+    const catLabel={lessons:'Lesson',skills:'Skill',systems:'System'}[cat]||'Entry';
+    $('modalTitle').textContent=k?`Edit ${catLabel}`:`Add ${catLabel}`;
+    const sel=(id)=>`<option value="${id}"${k&&k.type===id?' selected':''}>`;
+    const selSk=(id)=>`<option value="${id}"${k&&k.skill===id?' selected':''}>`;
     const selSt=(id)=>`<option value="${id}"${k&&k.status===id?' selected':''}>`;
+    const isSkill=cat==='skills';
+    const titlePh={lessons:'What did you learn? e.g. The 10x rule, Hook framework…',skills:'e.g. Content Creation Masterclass, Sell Like Crazy…',systems:'e.g. AIDA Framework, Weekly Review Process…'}[cat]||'Title…';
+    const notesPh={lessons:'Key takeaways, insights, what you learned…',skills:'Notes, highlights, thoughts…',systems:'How it works, steps, when to use it…'}[cat]||'Notes…';
     return `
-    <div class="field"><label>Name *</label><input class="input" id="m-kn-title" placeholder="e.g. Content Creation Masterclass, Sell Like Crazy…" value="${esc(k?.title||'')}"></div>
+    <input type="hidden" id="m-kn-cat" value="${cat}">
+    <div class="field"><label>Name *</label><input class="input" id="m-kn-title" placeholder="${titlePh}" value="${esc(k?.title||'')}"></div>
     <div class="field-row">
-      <div class="field"><label>Type</label><select class="select" id="m-kn-type">
+      <div class="field"><label>Source Type</label><select class="select" id="m-kn-type">
         ${sel('Book')}📖 Book</option>
         ${sel('Course')}🎓 Course</option>
         ${sel('Video')}🎥 Video / YouTube</option>
@@ -3737,7 +3759,7 @@ const MODAL_FORMS = {
         ${sel('Article')}📝 Article</option>
         ${sel('Other')}📌 Other</option>
       </select></div>
-      <div class="field"><label>Skill Category</label><select class="select" id="m-kn-skill">
+      <div class="field"><label>Domain</label><select class="select" id="m-kn-skill">
         ${selSk('Marketing')}📢 Marketing</option>
         ${selSk('Business')}💼 Business</option>
         ${selSk('Sales')}📈 Sales</option>
@@ -3755,20 +3777,22 @@ const MODAL_FORMS = {
       <div class="field"><label>Date Added</label><input class="input" id="m-kn-date" type="date" value="${k?.date||today()}"></div>
     </div>
     <div class="field"><label>Source Link</label><input class="input" id="m-kn-link" type="url" placeholder="https://…" value="${esc(k?.link||'')}"></div>
-    <div class="field-row">
+    ${isSkill?`<div class="field-row">
       <div class="field"><label>Status</label><select class="select" id="m-kn-status">
         ${selSt('active')}In Progress</option>
         ${selSt('todo')}To Start</option>
         ${selSt('done')}Completed</option>
       </select></div>
       <div class="field"><label>Progress (%)</label><input class="input" id="m-kn-progress" type="number" min="0" max="100" placeholder="0" value="${k?k.progress||0:''}"></div>
-    </div>
-    <div class="field"><label>Notes</label><textarea class="textarea" id="m-kn-notes" placeholder="Key takeaways, thoughts, highlights…" style="min-height:220px">${esc(k?.notes||'')}</textarea></div>`;
+    </div>`:''}
+    <div class="field"><label>Notes</label><textarea class="textarea" id="m-kn-notes" placeholder="${notesPh}" style="min-height:220px">${esc(k?.notes||'')}</textarea></div>`;
   },
     save:()=>{
       const title=$('m-kn-title').value.trim();if(!title)return alert('Name required');
+      const cat=$('m-kn-cat')?.value||_sdTab||'lessons';
       const items=load(K.knowledge);
-      const entry={title,type:$('m-kn-type').value,skill:$('m-kn-skill').value,source:$('m-kn-source').value.trim(),link:$('m-kn-link').value.trim(),status:$('m-kn-status').value,progress:parseInt($('m-kn-progress').value)||0,notes:$('m-kn-notes').value.trim(),date:$('m-kn-date').value||today()};
+      const entry={title,category:cat,type:$('m-kn-type').value,skill:$('m-kn-skill').value,source:$('m-kn-source').value.trim(),link:$('m-kn-link').value.trim(),notes:$('m-kn-notes').value.trim(),date:$('m-kn-date').value||today()};
+      if(cat==='skills'){entry.status=$('m-kn-status')?.value||'todo';entry.progress=parseInt($('m-kn-progress')?.value)||0;}
       if(_editingKnowledgeId){
         const i=items.findIndex(x=>x.id===_editingKnowledgeId);
         if(i>=0)items[i]={...items[i],...entry};
