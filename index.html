@@ -2982,7 +2982,8 @@ function renderReview(){
   const sun=new Date(d);sun.setDate(d.getDate()-d.getDay());
   const sunStr=sun.toLocaleDateString('sv');
   if($('reviewWeekLabel')) $('reviewWeekLabel').textContent=fmtWeekRange(sunStr);
-  _fillReviewForm(null);
+  const _hasReviewInput=['rv-wins','rv-losses','rv-priority','rv-vision'].some(id=>$(id)&&$(id).value.trim());
+  if(!_hasReviewInput) _fillReviewForm(null);
   // Athena scorecard + AI review
   const sc = $('reviewScorecard');
   if(sc){
