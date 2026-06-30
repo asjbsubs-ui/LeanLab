@@ -1303,7 +1303,7 @@ function fmtDateShort(d){if(!d)return'';const dt=new Date(d+'T12:00:00');return 
 function fmtWeekRange(sunStr){const sun=new Date(sunStr+'T12:00:00');const sat=new Date(sun);sat.setDate(sun.getDate()+6);const mn=['January','February','March','April','May','June','July','August','September','October','November','December'];return sun.getMonth()===sat.getMonth()?`${mn[sun.getMonth()]} ${sun.getDate()}-${sat.getDate()}`:`${mn[sun.getMonth()]} ${sun.getDate()} – ${mn[sat.getMonth()]} ${sat.getDate()}`;}
 
 // ── Keys ──────────────────────────────────────────────
-const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes',directory:'ahq_directory',mediaMemos:'ahq_media_memos',noteCats:'ahq_note_cats',quotes:'ahq_quotes',vocab:'ahq_vocab'};
+const K={tasks:'ahq_tasks',habits:'ahq_habits',habitLog:'ahq_habit_log',goals:'ahq_goals',journal:'ahq_journal',meetings:'ahq_meetings',books:'ahq_books',courses:'ahq_courses',knowledge:'ahq_knowledge',workouts:'ahq_workouts',metrics:'ahq_metrics',reviews:'ahq_reviews',notes:'ahq_notes',directory:'ahq_directory',mediaMemos:'ahq_media_memos',noteCats:'ahq_note_cats',quotes:'ahq_quotes',vocab:'ahq_vocab',woCats:'ahq_wo_cats'};
 
 function migrateReviewsToSunday(){
   const reviews=load(K.reviews);
@@ -1314,6 +1314,17 @@ function migrateReviewsToSunday(){
     if(d.getDay()!==0){d.setDate(d.getDate()-d.getDay());r.week=d.toLocaleDateString('sv');changed=true;}
   });
   if(changed) save(K.reviews,reviews);
+}
+function migrateWorkoutIds(){
+  if(localStorage.getItem('_mig_wo_ids')) return;
+  let changed=false;
+  const workouts=load(K.workouts);
+  const patchedW=workouts.map(w=>{if(!w.id){changed=true;return{...w,id:uid()};}return w;});
+  if(changed) save(K.workouts,patchedW);
+  const metrics=load(K.metrics);
+  const patchedM=metrics.map(m=>{if(!m.id){changed=true;return{...m,id:uid()};}return m;});
+  if(changed) save(K.metrics,patchedM);
+  localStorage.setItem('_mig_wo_ids','1');
 }
 function migrateKnowledge(){
   if(localStorage.getItem('ahq_km_done')) return;
@@ -5028,11 +5039,11 @@ function _dirAvatarColor(name){
   return `hsl(${h%360},55%,58%)`;
 }
 
-const _WO_CATS_DEFAULT=['Push','Pull','Legs','Upper Body','Full Body','Chest & Shoulders','Chest & Back','Back & Biceps','Arms','Core','Cardio','Basketball','Golf','Pickleball','Yoga'];
+const _WO_CATS_DEFAULT=['Push','Pull','Legs','Shoulders','Upper Body','Full Body','Chest & Shoulders','Chest & Back','Back & Biceps','Arms','Core','Cardio','Basketball','Golf','Pickleball','Yoga'];
 function loadWoCats(){try{return JSON.parse(localStorage.getItem('ahq_wo_cats'))||_WO_CATS_DEFAULT;}catch(e){return _WO_CATS_DEFAULT;}}
 function toggleWoCatEdit(){const ed=document.getElementById('wo-cat-editor');if(ed)ed.style.display=ed.style.display==='none'?'block':'none';}
-function removeWoCat(idx){const cats=loadWoCats();cats.splice(idx,1);localStorage.setItem('ahq_wo_cats',JSON.stringify(cats));_renderWoCatEditor();_renderWoChips();}
-function addWoCat(){const inp=$('wo-cat-new');const val=(inp.value||'').trim();if(!val)return;const cats=loadWoCats();if(!cats.includes(val)){cats.push(val);localStorage.setItem('ahq_wo_cats',JSON.stringify(cats));}inp.value='';_renderWoCatEditor();_renderWoChips();}
+function removeWoCat(idx){const cats=loadWoCats();cats.splice(idx,1);save(K.woCats,cats);_renderWoCatEditor();_renderWoChips();}
+function addWoCat(){const inp=$('wo-cat-new');const val=(inp.value||'').trim();if(!val)return;const cats=loadWoCats();if(!cats.includes(val)){cats.push(val);save(K.woCats,cats);}inp.value='';_renderWoCatEditor();_renderWoChips();}
 function _renderWoCatEditor(){const el=document.getElementById('wo-cat-list');if(!el)return;const cats=loadWoCats();el.innerHTML=cats.map((c,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 10px;border-radius:99px;background:rgba(255,255,255,.06);border:1px solid var(--border);font-size:11px;color:var(--text-secondary)">${esc(c)}<button type="button" onclick="removeWoCat(${i})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:0 2px;line-height:1">✕</button></span>`).join('');}
 function _renderWoChips(){const el=document.getElementById('m-wo-focus-chips');if(!el)return;const cats=loadWoCats();const sel=($('m-wo-name').value||'').split(' & ').filter(Boolean);el.innerHTML=cats.map(f=>{const on=sel.includes(f);return`<button type="button" onclick="selectWorkoutFocus(this)" class="${on?'focus-active':''}" style="padding:5px 11px;border-radius:99px;border:1px solid ${on?'var(--purple)':'var(--border-md)'};background:${on?'rgba(192,132,252,.15)':'transparent'};color:${on?'var(--purple)':'var(--text-muted)'};cursor:pointer;font-family:'Outfit',sans-serif;font-size:11px;font-weight:500;transition:all .15s" onmouseover="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-strong)'" onmouseout="if(!this.classList.contains('focus-active'))this.style.borderColor='var(--border-md)'">${f}</button>`;}).join('');}
 
@@ -5905,7 +5916,7 @@ function _toRows(col, v){
     if(!v||typeof v!=='object'||Array.isArray(v)) return [];
     return Object.entries(v).map(([date,ids])=>({item_id:date, value:ids}));
   }
-  if(col==='note_cats'){
+  if(col==='note_cats'||col==='wo_cats'){
     if(!Array.isArray(v)) return [];
     return v.map(cat=>({item_id:cat, value:cat}));
   }
@@ -5921,7 +5932,7 @@ function _fromRows(col, rows){
     live.forEach(r=>{if(Array.isArray(r.value)) obj[r.item_id]=r.value;});
     return obj;
   }
-  if(col==='note_cats') return live.map(r=>r.item_id);
+  if(col==='note_cats'||col==='wo_cats') return live.map(r=>r.item_id);
   return live.map(r=>r.value);
 }
 
@@ -6341,6 +6352,7 @@ function init(){
   seedIfEmpty();
   migrateReviewsToSunday();
   migrateKnowledge();
+  migrateWorkoutIds();
   // Set time of day greeting
   const h=new Date().getHours();
   $('timeOfDay').textContent=h<12?'morning':h<17?'afternoon':'evening';
