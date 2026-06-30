@@ -561,7 +561,7 @@ html,body{height:100%;background:var(--bg);color:var(--text-primary);font-family
   .logs-bar{flex-wrap:wrap;height:auto;min-height:54px;padding:10px 14px;gap:8px}
   .logs-page-title{font-size:11px}
   .db-search{width:100%!important}
-  .db-table{font-size:11px;min-width:760px}
+  .db-table{font-size:11px;min-width:900px}
   .db-table th{padding:8px 12px;white-space:nowrap}
   .db-table td{padding:8px 12px;white-space:normal;word-break:break-word}
   .logs-content{overflow-x:auto}
@@ -4804,7 +4804,7 @@ function renderLogsSD(q){
   const rows=[...filtered].sort(dateSortFn('selfdev','date')).map(i=>{
     const pct=i.status==='done'?100:i.progress||0;
     return dbRow([
-      `<span style="font-size:11px">${TYPE_ICONS[i.type]||'📌'} ${esc(i.type||'')}</span>`,
+      `<span style="font-size:11px;white-space:nowrap">${TYPE_ICONS[i.type]||'📌'} ${esc(i.type||'')}</span>`,
       `<strong style="color:var(--text-primary)">${esc(i.title)}</strong>`,
       `<span>${SKILL_ICONS[i.skill]||'📚'} ${esc(i.skill||'Other')}</span>`,
       esc(i.source||'—'),
@@ -4816,7 +4816,7 @@ function renderLogsSD(q){
         <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t-selfdev)">${pct}%</span>
       </div>`,
       stLbl[i.status]||'—',
-      `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap">${i.date?fmtDate(i.date):'—'}</span>`,
+      `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap;display:inline-block;min-width:88px">${i.date?fmtDate(i.date):'—'}</span>`,
       i.notes?`<span style="font-size:11px;color:var(--text-muted)">${esc(i.notes.slice(0,60))}${i.notes.length>60?'…':''}</span>`:'<span style="color:var(--text-muted)">—</span>',
       `<span onclick="event.stopPropagation()"><button onclick="editKnowledge('${i.id}')" style="background:transparent;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;padding:3px 7px;border-radius:3px" onmouseover="this.style.color='var(--t-selfdev)'" onmouseout="this.style.color='var(--text-muted)'">✏️</button>${dbDelBtn('deleteKnowledge',i.id)}</span>`
     ],`viewKnowledge('${i.id}')`);
